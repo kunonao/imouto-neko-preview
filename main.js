@@ -329,14 +329,14 @@
     room: {
       茜: { つくえ: [36, 116], ソファ: [204, 140], ゆか: [140, 140], たち: [140, 140] },
       葵: { ゆか: [120, 140], つくえ: [78, 104], ソファ: [172, 132], となり: [187, 132] },   // となり = ソファで茜にくっつく
-      葵人間: { ゆか: [168, 140], ソファ: [172, 140] },
+      葵人間: { ゆか: [168, 140], ソファ: [172, 140], ソファちかく: [178, 140], ソファぴったり: [184, 140] },   // 終章: 甘さで距離が変わる
       defaults: ['マグ', 'ノートPC', 'ペンたて', 'ほん'],
       props: { マグ: [90, 104], ノートPC: [46, 104], ペンたて: [100, 104], ほん: [104, 104], けしごむ: [86, 104], スマホ: [86, 104], かつおぶし: [112, 140], みず: [122, 140] },
       floorDrop: { ペンたて: [114, 140], けしごむ: [118, 140], ほん: [120, 140], マグ: [116, 140], スマホ: [116, 140] },
       slots: [[72, 104], [26, 104], [60, 104]],
     },
     town: {
-      茜: { たち: [128, 140], ベンチ: [180, 140], だっこ: [128, 140] },
+      茜: { たち: [128, 140], ベンチ: [180, 131], だっこ: [128, 140] },   // ベンチ = お尻が座面（y 124〜128）に来る高さ
       葵: { ゆか: [92, 140] },
       葵人間: {},
       defaults: [],
@@ -543,7 +543,7 @@
     drawProps(L);
     const human = E.state.すがた === 'にんげん';
     let gp, sp;
-    if (human) { gp = (L.葵人間 && L.葵人間[E.state.葵]) || [168, 140]; sp = humanSprite(E.state.葵 === 'ソファ' ? 'aoi_sit' : 'aoi_stand'); }
+    if (human) { gp = (L.葵人間 && L.葵人間[E.state.葵]) || [168, 140]; sp = humanSprite(String(E.state.葵).startsWith('ソファ') ? 'aoi_sit' : 'aoi_stand'); }
     else if (E.state.葵 === 'だっこ' && ap) { gp = [ap[0] + 6, ap[1] - 12]; sp = 'cat_sit'; }   // 茜の腕の中
     else { gp = L.葵[E.state.葵]; sp = v.pose.葵 === 'ねころぶ' ? 'cat_lie' : 'cat_sit'; }
     if (gp) { gp = tween('葵', gp[0], gp[1]); drawSprite(sp, gp[0], gp[1]); }
@@ -577,72 +577,149 @@
     else if (ev.name === 'エーオーアイ') aoiGame(ev.params);
     else { toast(`（ミニゲーム「${ev.name}」は未実装。成功あつかい）`); endGame('せいこう'); }
   }
-  function endGame(result) {
+  function endGame(result, set) {
     if (game && game.stop) game.stop();
     game = null;
     ui.minigame.classList.add('hidden');
     ui.minigame.replaceChildren();
     mode = 'dialog';
     render();
-    step({ result });
+    step({ result, set });
   }
-  // 3章: お姉ちゃんについて歩く。塀はジャンプで越え、カラスは跳ばずにやり過ごす。失敗はない
+  // 3章: お姉ちゃんについて歩く（v2.1。Codex の意見を反映）
+  //   3本の道（奥・中・手前）を▲▼で変える。足元の小物をよけ、蝶や落ち葉の誘惑に気を取られると寄り道になる。失敗はない
+  //   主役は回避ではなく茜との距離: 同じ道に寄ると微笑む、寄り道すると待ってくれる、つまずくと声をかける
+  //   区間1 = 覚える（序盤は何もなし。最後に蝶が一度）、区間2 = 寄り道する（誘惑多め）、区間3 = 寄り添う（後半は静かになり、茜が隣まで下がってくる）
   function walkGame(p) {
-    const total = (Number(p.長さ) || 8) * 1000;
+    const total = (Number(p.長さ) || 18) * 1000;
     const seg = Number(p.区間) || 1;
-    const carried = !!p.だっこ;   // 茜に抱かれて進む（障害物なし）
+    const carried = !!p.だっこ;   // 茜に抱かれて進む（何も起きない）
+    const LANES = [124, 135, 147];   // 足元の y（奥・中・手前）
+    const CAT_X = 72;
+    const KINDS = {   // 物 = 当たるとつまずく（足元の小物）, 誘 = 触れると寄り道（猫の誘惑）
+      1: [['みずたまり', '物'], ['うえきばち', '物'], ['ちょう', '誘']],
+      2: [['こえだ', '物'], ['おちばのやま', '物'], ['くさのほ', '誘'], ['おちば', '誘'], ['ちょう', '誘']],
+      3: [['あきかご', '物'], ['しきもの', '物'], ['のぼり', '誘'], ['さかな', '誘']],
+    }[seg] || [['みずたまり', '物'], ['ちょう', '誘']];
     const t0 = Date.now();
-    let scroll = 0, jumpY = 0, vy = 0, stumbles = 0, stumbleUntil = 0, done = false, nextObs = 1200;
-    const obs = [];
-    const prog = el('div', 'prog', carried ? 'お姉ちゃんの腕の中' : '');
+    let scroll = 0, lane = 1, laneY = LANES[1], akLane = 1, akY = LANES[1], akX = 176, done = false;
+    let stumbles = 0, detours = 0, stumbleUntil = 0, chaseUntil = 0, cueUntil = 0, smileUntil = 0, nextItem = 0, nextTurn = 0, lastTemptEnd = 0;
+    let wasChasing = false, wasSameLane = true;
+    const items = [];
+    const status = el('div', 'prog', carried ? 'お姉ちゃんの腕の中。ゆられている' : '');
     const bar = el('div', 'bar'); const fill = document.createElement('div'); fill.style.width = '0%'; bar.appendChild(fill);
-    const btn = el('button', 'big', carried ? 'ゆられる' : 'ジャンプ！');
-    const row = el('div', 'row'); row.append(btn, button('スキップ', () => finish()));
-    ui.minigame.replaceChildren(el('div', 'title', carried ? '抱っこで商店街へ。何もしなくていい' : seg === 1 ? 'お姉ちゃんについていこう。塀はジャンプで越える。カラスが来たら跳ばない' : 'お姉ちゃんについていこう'), prog, bar, row);
-    const jump = () => { if (!done && !carried && jumpY === 0) vy = -5.2; };
-    hold(btn, jump, () => {});
-    function finish() { if (done) return; done = true; clearInterval(timer); setTimeout(() => endGame('せいこう'), 300); }
+    const up = el('button', 'big', '▲ おく'), down = el('button', 'big', '▼ てまえ');
+    up.style.minWidth = down.style.minWidth = '120px'; up.style.minHeight = down.style.minHeight = '60px';
+    const col = el('div', 'col'); col.append(up, down);
+    const skipBtn = button('スキップ', () => finish());
+    const bottom = el('div', 'row'); bottom.style.width = '100%'; bottom.style.justifyContent = 'space-between'; bottom.style.alignItems = 'flex-end';
+    bottom.append(skipBtn, carried ? el('div') : col);
+    const title = carried ? '抱っこで進む。何もしなくていい' : seg === 1 ? 'お姉ちゃんについていこう。▲▼で道を変える。足元の物はよけて、蝶に気を取られない' : seg === 2 ? '公園の道。落ち葉や草の穂が気になる……' : '商店街。もうすぐ川原';
+    ui.minigame.replaceChildren(el('div', 'title', title), status, bar, bottom);
+    const move = d => { if (done || carried || Date.now() < chaseUntil) return; lane = Math.max(0, Math.min(2, lane + d)); };
+    up.onpointerdown = e => { e.preventDefault(); move(-1); };
+    down.onpointerdown = e => { e.preventDefault(); move(1); };
+    // 区間ごとの出し方
+    const plan = seg === 1 ? { first: 4000, gap: [1300, 900], tempt: 0, lastTempt: true } : seg === 2 ? { first: 1500, gap: [1700, 900], tempt: 0.6 } : { first: 1200, gap: [1200, 700], tempt: 0.35 };
+    function finish() {
+      if (done) return;
+      done = true; clearInterval(timer);
+      const grade = carried ? 'だっこ' : detours >= 2 ? 'よりみち' : (detours === 0 && stumbles === 0) ? 'ぴったり' : 'ふつう';
+      setTimeout(() => endGame('せいこう', { さんぽ: grade }), 300);
+    }
     const timer = setInterval(() => {
-      const now = Date.now(), t = now - t0;
-      const speed = now < stumbleUntil ? 1 : 2.4;
+      const now = Date.now(), t = now - t0, rest = total - t;
+      const chasing = now < chaseUntil, stumbling = now < stumbleUntil;
+      const quiet = seg === 3 && rest < total * 0.45;   // 区間3の後半: 静かになり、茜が隣へ
+      const speed = carried ? 2.0 : chasing ? 0.3 : stumbling ? 1.0 : quiet ? 1.6 : 2.2;
       scroll += speed;
-      jumpY += vy; vy += 0.45; if (jumpY > 0) { jumpY = 0; vy = 0; }
-      if (!carried && t > nextObs) { obs.push({ x: 270, kind: Math.random() < 0.6 ? '塀' : 'カラス' }); nextObs = t + 1400 + Math.random() * 1200; }
-      for (const o of obs) {
-        o.x -= speed;
-        if (o.hit) continue;
-        const wall = o.kind === '塀';
-        const ox1 = o.x + (wall ? 12 : 10), oy0 = wall ? 130 : 102, oy1 = wall ? 140 : 110;
-        if (ox1 > 74 && o.x < 86 && oy1 > 126 + jumpY && oy0 < 140 + jumpY) {
-          o.hit = true; stumbles++; stumbleUntil = now + 700;
-          prog.textContent = `つまずいた！ ${stumbles}回　茜「大丈夫かー？」`;
+      laneY += (LANES[lane] - laneY) * 0.35;
+      akY += (LANES[akLane] - akY) * 0.2;
+      if (quiet) akX += (118 - akX) * 0.01;
+      if (chasing !== wasChasing) { if (!chasing) status.textContent = '茜「見終わった？ ほな、行こか」'; wasChasing = chasing; }
+      const same = lane === akLane;
+      if (same && !wasSameLane && !carried) { smileUntil = now + 900; status.textContent = '茜がこっちを見て、笑った'; }
+      wasSameLane = same;
+      if (!carried && !quiet && t > nextTurn) {   // 茜がときどき道を変える（追う目安。罰はない）
+        if (nextTurn > 0) { const c = [0, 1, 2].filter(l => l !== akLane); akLane = c[Math.floor(Math.random() * c.length)]; cueUntil = now + 1200; }
+        nextTurn = t + (nextTurn > 0 ? 4000 + Math.random() * 3000 : 2500);
+      }
+      if (!carried && t > Math.max(plan.first, nextItem) && rest > 2500) {
+        let pool = KINDS;
+        if (plan.lastTempt) pool = rest < 7000 && lastTemptEnd === 0 ? KINDS.filter(k => k[1] === '誘') : KINDS.filter(k => k[1] === '物');
+        else if (quiet) pool = Math.random() < 0.6 ? [] : KINDS.filter(k => k[1] === '誘');
+        else pool = Math.random() < plan.tempt ? KINDS.filter(k => k[1] === '誘') : KINDS.filter(k => k[1] === '物');
+        if (pool.length) {
+          const [kind, type] = pool[Math.floor(Math.random() * pool.length)];
+          if (type === '誘') lastTemptEnd = t;
+          items.push({ x: 270, lane: Math.floor(Math.random() * 3), kind, type, seed: Math.random() * 100 });
+        }
+        nextItem = t + plan.gap[0] + Math.random() * plan.gap[1] + (quiet ? 1500 : 0);
+      }
+      for (const it of items) {
+        it.x -= speed;
+        if (it.hit || chasing) continue;
+        const inLane = Math.abs(laneY - LANES[it.lane]) < 4;
+        it.near = inLane && it.type === '誘' && it.x > CAT_X && it.x < CAT_X + 56;   // 予兆: 猫が気づく
+        if (inLane && it.x < CAT_X + 7 && it.x + 10 > CAT_X - 7) {
+          it.hit = true;
+          if (it.type === '物') { stumbles++; stumbleUntil = now + 700; status.textContent = '茜「大丈夫かー？」'; }
+          else { detours++; chaseUntil = now + 1200; status.textContent = '茜「……気になるん？ ちょっとだけやで」'; }
         }
       }
-      while (obs.length && obs[0].x < -20) obs.shift();
+      while (items.length && items[0].x < -24) items.shift();
       fill.style.width = Math.min(100, t / total * 100) + '%';
       render();
       if (t >= total) finish();
     }, 33);
+    const drawItem = it => {
+      const x = Math.round(it.x), y = LANES[it.lane], ph = Math.floor((scroll + it.seed) / 6) % 2;
+      switch (it.kind) {
+        case 'みずたまり': rect(x, y - 2, 12, 2, '#5a8ac8'); rect(x + 2, y - 3, 8, 1, '#a0c8f0'); break;
+        case 'うえきばち': rect(x + 1, y - 5, 6, 5, '#a05030'); rect(x, y - 8, 8, 3, '#3a7a30'); rect(x + 3, y - 10, 2, 2, C.pink); break;
+        case 'こえだ': rect(x, y - 2, 10, 1, '#6a4020'); rect(x + 6, y - 4, 1, 2, '#6a4020'); rect(x + 3, y - 3, 1, 1, '#6a4020'); break;
+        case 'おちばのやま': rect(x, y - 3, 12, 3, '#c07030'); rect(x + 2, y - 5, 8, 2, '#d08030'); rect(x + 4, y - 6, 4, 1, '#e0a040'); break;
+        case 'あきかご': rect(x, y - 6, 9, 6, '#c8a060'); rect(x + 1, y - 5, 7, 4, '#a07838'); rect(x + 3, y - 8, 3, 2, '#c8a060'); break;
+        case 'しきもの': rect(x, y - 2, 14, 2, '#4a6a9a'); rect(x + 2, y - 3, 10, 1, '#78a0d0'); break;
+        case 'ちょう': rect(x + ph, y - 12, 2, 2, C.yellow); rect(x + 3 - ph, y - 12, 2, 2, C.yellow); rect(x + 2, y - 11, 1, 2, C.black); break;
+        case 'くさのほ': rect(x + 2, y - 8, 1, 8, '#8aa050'); rect(x + 1 + ph, y - 11, 3, 3, '#d8c890'); break;
+        case 'おちば': rect(x, y - 4 + ph, 3, 2, '#d08030'); rect(x + 1, y - 5 + ph, 1, 1, '#d08030'); break;
+        case 'のぼり': rect(x + 3, y - 24, 1, 24, C.gray); rect(x + 4 + ph, y - 23, 6, 14, C.sofa); rect(x + 5 + ph, y - 20, 4, 1, C.white); rect(x + 5 + ph, y - 16, 4, 1, C.white); break;
+        case 'さかな': rect(x, y - 6, 6, 3, '#b0c0d0'); rect(x + 6, y - 7, 2, 5, '#b0c0d0'); rect(x + 1, y - 5, 1, 1, C.black); rect(x + 8, y - 11 - ph, 1, 3, C.gray); rect(x + 10, y - 13 + ph, 1, 3, C.gray); break;
+      }
+    };
     game = {
       stop: () => clearInterval(timer),
-      key: e => { if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'Enter') jump(); },
+      key: e => { if (e.key === 'ArrowUp' || e.key === 'w') move(-1); else if (e.key === 'ArrowDown' || e.key === 's') move(1); },
       draw: () => {
         drawSky(false);
-        rect(0, 120, 256, 40, seg === 2 ? '#4a8a40' : '#8a8a90');
-        for (let x = -(scroll % 32); x < 256; x += 32) rect(x, 120, 1, 40, seg === 2 ? '#3a7a30' : '#707078');
-        for (let x = -((scroll * 0.5) % 48); x < 256; x += 48) {
-          if (seg === 1) rect(x, 100, 4, 20, '#a08060');
-          else if (seg === 2) { rect(x + 10, 90, 6, 30, '#6a4020'); rect(x, 62, 26, 32, '#3a7a30'); }
-          else { rect(x, 50, 40, 70, '#d8c8b0'); rect(x + 2, 64, 36, 8, C.sofa); }
+        const park = seg === 2;
+        // 3本の道: 地面の明暗で分ける（奥が暗く、手前が明るい）
+        const shades = park ? ['#3e7a36', '#4a8a40', '#56984a'] : ['#7a7a82', '#8a8a90', '#9a9aa0'];
+        rect(0, 118, 256, 12, shades[0]); rect(0, 130, 256, 11, shades[1]); rect(0, 141, 256, 19, shades[2]);
+        for (let x = -(scroll % 24); x < 256; x += 24) { rect(x, 129, 6, 1, park ? '#6aa860' : '#b0b0b8'); rect(x + 12, 140, 6, 1, park ? '#6aa860' : '#b0b0b8'); }
+        for (let x = -((scroll * 0.5) % 48); x < 256; x += 48) {   // 遠景
+          if (seg === 1) { rect(x, 100, 4, 18, '#a08060'); rect(x, 100, 48, 2, '#a08060'); }
+          else if (seg === 2) { rect(x + 10, 92, 6, 26, '#6a4020'); rect(x, 64, 26, 32, '#3a7a30'); }
+          else { rect(x, 50, 40, 68, '#d8c8b0'); rect(x + 2, 64, 36, 8, C.sofa); rect(x + 14, 90, 12, 28, '#504030'); }
         }
-        for (const o of obs) {
-          if (o.kind === '塀') { rect(o.x, 130, 12, 10, C.gray); rect(o.x, 130, 12, 2, '#c8c8d0'); }
-          else { rect(o.x, 104, 10, 4, C.black); rect(o.x + 3, 102, 4, 2, C.black); rect(o.x + 9, 105, 2, 1, C.yellow); }
-        }
-        const bob = Math.floor(scroll / 8) % 2;
-        drawSprite(humanSprite('akane_stand'), 176, 140 - bob);
-        if (carried) drawSprite('cat_sit', 182, 128 - bob);
-        else if (!(Date.now() < stumbleUntil && Math.floor(Date.now() / 80) % 2)) drawSprite('cat_sit', 80, 140 + jumpY);
+        const now = Date.now(), bob = Math.floor(scroll / 8) % 2;
+        const chasing = now < chaseUntil, stumbling = now < stumbleUntil;
+        const layers = items.map(it => ({ y: LANES[it.lane], f: () => drawItem(it) }));
+        layers.push({ y: akY, f: () => {
+          const ax = Math.round(akX), ay = Math.round(akY);
+          drawSprite(humanSprite('akane_stand'), ax, ay - bob);
+          if (carried) drawSprite('cat_sit', ax + 6, ay - 12 - bob);
+          if (now < cueUntil) { rect(ax - 1, ay - 42, 2, 5, C.white); rect(ax - 1, ay - 36, 2, 2, C.white); }   // 「こっちやで」
+          if (now < smileUntil) drawHeart(ax + 10, ay - 40);
+        } });
+        if (!carried) layers.push({ y: laneY + 0.1, f: () => {
+          const cy = Math.round(laneY);
+          if (!(stumbling && Math.floor(now / 80) % 2)) drawSprite('cat_sit', CAT_X, cy - (chasing ? 0 : bob));
+          if (chasing) { rect(CAT_X - 1, cy - 24, 2, 4, C.yellow); rect(CAT_X - 1, cy - 19, 2, 1, C.yellow); }   // 気を取られた
+          else if (items.some(it => it.near)) { rect(CAT_X - 2, cy - 24, 4, 1, C.white); rect(CAT_X + 1, cy - 23, 1, 2, C.white); rect(CAT_X, cy - 21, 1, 1, C.white); rect(CAT_X, cy - 19, 1, 1, C.white); }   // 予兆の「？」
+        } });
+        layers.sort((a, b) => a.y - b.y).forEach(l => l.f());
       },
     };
   }

@@ -141,6 +141,7 @@
       if (this.waitingGame) {
         const r = input && input.result;
         if (!r) return { type: 'minigame', name: this.waitingGame.name, params: this.waitingGame.params };
+        if (input.set) Object.assign(this.state, input.set);   // ミニゲームの成績など（例: さんぽ=ぴったり）
         const g = this.waitingGame;
         this.pending.push(...((g.branchDisc && g.branchDisc[r]) || []));
         this.queue.unshift(...(g.branches[r] || []));
