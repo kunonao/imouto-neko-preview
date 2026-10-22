@@ -828,6 +828,9 @@
       ],
     }[seg] || [];
     let talkI = 0;
+    // 進行は時間ではなく「道のり」で数える: 予定の t 秒 = 通常の歩き（18 px/秒）で t 秒ぶん進んだ地点。
+    // 寄り道や待ちで足が止まれば、その分あとの出来事も待つので、用意した要素は必ず全部通り過ぎてから区間が終わる
+    const roadLen = (total / 1000) * V.cat;
 
     // ── 操作 ──
     const move = dir => {
@@ -869,8 +872,8 @@
       }
     }
     function tick(t, dt, now) {
-      const T = t / 1000;
       if (carried) { scroll += 40 * dt; return; }
+      const T = scroll / V.cat;   // 「道のりの時刻」。止まっている間は進まない
       const busy = !!tempt || !!playing || !!chase || !!callAt || now < stumbleUntil;
       // 予定
       for (const ev of PLAN) {
@@ -1056,9 +1059,10 @@
     const timer = setInterval(() => {
       const now = Date.now(), t = now - t0, dt = Math.min(0.1, (now - last) / 1000); last = now;
       tick(t, dt, now);
-      fill.style.width = Math.min(100, t / total * 100) + '%';
+      const progress = carried ? t / total : scroll / roadLen;   // 道のりで進む（だっこは何も起きないので時間で）
+      fill.style.width = Math.min(100, progress * 100) + '%';
       render();
-      if (t >= total) { finalize(); finish(grade(), flags()); }
+      if (progress >= 1 && !tempt && !playing && !chase && !callAt) { finalize(); finish(grade(), flags()); }   // 途中の出来事が片付いてから終わる
     }, 33);
     game = {
       stop: () => clearInterval(timer),
