@@ -19,7 +19,9 @@
     return names;
   })();
   // costume: old = 中文版の衣装（基準。aivoice.jp のキャラクターページの立ち絵）, new = A.I.VOICE2 衣装, en = English 版衣装
-  const settings = { size: 'm', costume: 'old' };
+  const settings = { size: 'm', costume: 'old', font: 'dot' };   // font: dot = DotGothic16 / pixel = PixelMplus12（ファミコン風）/ std = 端末の書体
+  const FONT_LABEL = { dot: '文字: ドット', pixel: '文字: ファミコン風', std: '文字: 標準' };
+  const FONT_NEXT = { dot: 'pixel', pixel: 'std', std: 'dot' };
   const COSTUME_LABEL = { old: '衣装: 中文版', new: '衣装: A.I.VOICE2', en: '衣装: English' };
   const COSTUME_NEXT = { old: 'new', new: 'en', en: 'old' };
   // 台本の「!衣装 …」と設定の値を、素材 id の接尾辞に直す
@@ -37,7 +39,7 @@
 
   const ui = {};
   ['app', 'title', 'play', 'stage', 'stage-wrap', 'objective', 'dialog', 'd-name', 'd-text', 'd-next', 'commands', 'minigame', 'panel', 'btn-menu',
-    'menu', 'menu-panel', 'chapter-end', 'ce-title', 'ce-text', 'btn-next', 'toast', 'btn-new', 'btn-continue', 'btn-size', 'btn-costume',
+    'menu', 'menu-panel', 'chapter-end', 'ce-title', 'ce-text', 'btn-next', 'toast', 'btn-new', 'btn-continue', 'btn-size', 'btn-font', 'btn-costume', 'btn-credits',
     'card', 'card-small', 'card-label', 'card-big', 'disc', 'btn-found']
     .forEach(id => { ui[id] = $(id); });
 
@@ -64,13 +66,17 @@
     const s = store.get(SETTINGS_KEY);
     if (s && ['s', 'm', 'l'].includes(s.size)) settings.size = s.size;
     if (s && COSTUME_LABEL[s.costume]) settings.costume = s.costume;
+    if (s && FONT_LABEL[s.font]) settings.font = s.font;
+    if (FONT_LABEL[params.get('font')]) settings.font = params.get('font');   // 確認用: ?font=dot|pixel|std
   }
   function applySize() {
-    document.body.className = 'size-' + settings.size;
+    document.body.className = 'size-' + settings.size + (settings.font === 'dot' ? '' : ' font-' + settings.font);
     ui['btn-size'].textContent = '文字の大きさ: ' + { s: '小', m: '中', l: '大' }[settings.size];
+    ui['btn-font'].textContent = FONT_LABEL[settings.font];
     ui['btn-costume'].textContent = COSTUME_LABEL[settings.costume];
   }
   function cycleSize() { settings.size = { s: 'm', m: 'l', l: 's' }[settings.size]; applySize(); store.set(SETTINGS_KEY, settings); fitCanvas(); }
+  function cycleFont() { settings.font = FONT_NEXT[settings.font]; applySize(); store.set(SETTINGS_KEY, settings); }
   function cycleCostume() { settings.costume = COSTUME_NEXT[settings.costume]; applySize(); store.set(SETTINGS_KEY, settings); render(); }
   // 人間の素材は衣装で id を切り替える。台本が「!衣装」で指定していればそれを優先し、なければ設定の衣装
   function humanSprite(base) {
@@ -146,6 +152,7 @@
   function enterPlay() {
     showScreen('play');
     ui.minigame.classList.add('hidden');
+    ui.play.classList.remove('game');
     ui.disc.classList.add('hidden');
     ui.commands.replaceChildren();
     setDialog('', '', 'nare', false);
@@ -205,6 +212,7 @@
     saveProgress();
     mode = 'commands';
     ui['d-next'].classList.add('hidden');
+    cmdPage = 0;
     renderCommands();
     if (AUTO.length) setTimeout(() => doCommand(AUTO.shift()), 0);
   }
@@ -252,7 +260,7 @@
   function setDialog(name, text, cls, next) {
     ui['d-name'].textContent = name;
     ui['d-text'].textContent = text;
-    ui.dialog.className = 'dialog ' + cls;
+    ui.dialog.className = 'dialog frame ' + cls;
     ui['d-next'].classList.toggle('hidden', !next);
   }
   function showSay(it) {
@@ -268,16 +276,22 @@
   }
 
   // ---------- コマンド ----------
+  // 3 列 × 3 段（9 個）まではそのまま。超えたら 6 個ずつ見せ、3 段目をページ送りに使う（ボタンを小さくしない）
+  let cmdPage = 0;
   function renderCommands(group) {
-    const frag = document.createDocumentFragment();
-    if (group) {
-      group.targets.forEach(t => frag.appendChild(button(t, () => doCommand(`${group.base}→${t}`))));
-      frag.appendChild(button('もどる', () => renderCommands()));
-    } else {
-      E.commands().forEach(c => frag.appendChild(button(c.targets.length ? c.base + ' →' : c.base, () => c.targets.length ? renderCommands(c) : doCommand(c.base))));
-    }
-    ui.commands.replaceChildren(frag);
-    ui.commands.classList.toggle('many', ui.commands.children.length > 9);   // 4 段目が要るときは段を低くする
+    let items;
+    if (group) items = [...group.targets.map(t => button(t, () => doCommand(`${group.base}→${t}`))), button('もどる', () => renderCommands())];
+    else items = E.commands().map(c => button(c.targets.length ? c.base + ' →' : c.base, () => c.targets.length ? renderCommands(c) : doCommand(c.base)));
+    if (items.length > 9) {
+      const PER = 6, pages = Math.ceil(items.length / PER);
+      cmdPage = Math.max(0, Math.min(cmdPage, pages - 1));
+      items = items.slice(cmdPage * PER, cmdPage * PER + PER);
+      while (items.length < PER) items.push(el('div'));
+      items.push(button('← まえ', () => { cmdPage--; renderCommands(group); }, cmdPage > 0 ? '' : 'ghost'),
+        el('div', 'page', `${cmdPage + 1} / ${pages}`),
+        button('つぎ →', () => { cmdPage++; renderCommands(group); }, cmdPage < pages - 1 ? '' : 'ghost'));
+    } else cmdPage = 0;
+    ui.commands.replaceChildren(...items);
     ui.commands.classList.remove('hidden');
     ui.commands.classList.remove('busy');
   }
@@ -292,6 +306,7 @@
     frag.appendChild(button('エンディング', showEndings));
     frag.appendChild(button('章をえらぶ', showChapters));
     frag.appendChild(button(ui['btn-size'].textContent, function () { cycleSize(); this.textContent = ui['btn-size'].textContent; }));
+    frag.appendChild(button(ui['btn-font'].textContent, function () { cycleFont(); this.textContent = ui['btn-font'].textContent; }));
     frag.appendChild(button(ui['btn-costume'].textContent, function () { cycleCostume(); this.textContent = ui['btn-costume'].textContent; }));
     frag.appendChild(button('タイトルへ', () => { closeMenu(); initTitle(); }));
     frag.appendChild(button('とじる', closeMenu));
@@ -324,6 +339,24 @@
     frag.appendChild(el('p', 'note', '一日の過ごし方（よく食べた、よく甘えた、など）で変わります。条件を満たした終わり方が複数あれば、終章の前に選べます'));
     frag.appendChild(button('もどる', openMenu));
     p.replaceChildren(frag);
+  }
+  // クレジット（同梱フォントのライセンス表記。タイトルから）
+  function showCredits() {
+    const p = ui['menu-panel'];
+    const frag = document.createDocumentFragment();
+    frag.appendChild(el('h2', null, 'クレジット'));
+    frag.appendChild(el('p', 'small', '「妹はネコ」は琴葉茜・琴葉葵の非公式ファンゲームです。キャラクターの権利は権利者に帰属します'));
+    const ul = el('ul');
+    const li1 = el('li', 'small', 'フォント: DotGothic16（Fontworks Inc.）— SIL Open Font License 1.1　');
+    const a1 = el('a', null, 'ライセンス全文'); a1.href = 'fonts/LICENSE-DotGothic16-OFL.txt'; a1.target = '_blank'; a1.rel = 'noopener'; li1.appendChild(a1);
+    const li2 = el('li', 'small', 'フォント: PixelMplus（M+ FONTS PROJECT）— M+ FONT LICENSE　');
+    const a2 = el('a', null, 'ライセンス全文'); a2.href = 'fonts/LICENSE-PixelMplus-mplus.txt'; a2.target = '_blank'; a2.rel = 'noopener'; li2.appendChild(a2);
+    ul.append(li1, li2);
+    frag.appendChild(ul);
+    frag.appendChild(el('p', 'small', 'フォントは台本で使う文字だけに絞った WOFF2 に変換して同梱しています（元のフォントは変更していません）'));
+    frag.appendChild(button('とじる', closeMenu));
+    p.replaceChildren(frag);
+    ui.menu.classList.remove('hidden');
   }
   function showChapters() {
     const p = ui['menu-panel'];
@@ -590,8 +623,8 @@
     if (v.pose.茜 === 'なでる' && gp) drawHeart(gp[0] + 10, gp[1] - 22);
     if (fadeAlpha > 0) rect(0, 0, 256, 160, `rgba(0,0,0,${fadeAlpha})`);
   }
-  // 遊ぶ画面は決め打ちの大きさ（縦長 390×724、横長 960×448。内訳は style.css の先頭）を、端末の縦横の短い方に合わせて同じ倍率で縮める
-  const DESIGN = { portrait: [390, 724], landscape: [960, 448] };
+  // 遊ぶ画面は決め打ちの大きさ（縦長 390×632、横長 896×392。内訳は style.css の先頭）を、見えている領域に収まる倍率で縮める
+  const DESIGN = { portrait: [390, 632], landscape: [896, 392] };
   // 実際に見えている #app の内側（余白と safe-area を引いた大きさ）に収める。ページはスクロールさせない
   function fitCanvas() {
     const cs = getComputedStyle(ui.app);
@@ -611,6 +644,7 @@
   function startMinigame(ev) {
     ui.commands.classList.add('hidden');
     ui.minigame.classList.remove('hidden');
+    ui.play.classList.add('game');   // ミニゲーム中は会話枠を縮めてコマンド枠を広げる
     ui['d-next'].classList.add('hidden');
     if (GAME_SKIP) { setTimeout(() => endGame('せいこう', ev.name === 'よみちさんぽ' ? { さんぽ: 'ぴったり' } : undefined), 0); return; }
     if (ev.name === 'キーボードれんだ') kbGame(ev.params);
@@ -624,6 +658,7 @@
     game = null;
     ui.minigame.classList.add('hidden');
     ui.minigame.replaceChildren();
+    ui.play.classList.remove('game');
     ui.commands.classList.remove('hidden');
     ui.commands.classList.add('busy');
     mode = 'dialog';
@@ -934,6 +969,8 @@
     render();
   };
   ui['btn-size'].onclick = cycleSize;
+  ui['btn-font'].onclick = cycleFont;
+  ui['btn-credits'].onclick = showCredits;
   ui['btn-costume'].onclick = cycleCostume;
   ui['btn-menu'].onclick = openMenu;   // メニューは常に出しておく
   ui['btn-found'].onclick = () => { showFound(); ui.menu.classList.remove('hidden'); };
