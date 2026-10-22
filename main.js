@@ -27,6 +27,8 @@
   const params = new URLSearchParams(location.search);
   const SKIP = params.get('skip') === '1';   // 確認用: 台詞を自動で送る
   const AUTO = (params.get('play') || '').split(',').filter(Boolean);   // 確認用: コマンドを順に自動実行
+  const STOP = params.get('stop') || '';   // 確認用: skip=1 のとき、この文字を含む台詞で自動送りを止める（途中の絵を見る）
+  const GAME_SKIP = params.get('game') === 'skip';   // 確認用: ミニゲームを成功あつかいで飛ばす
 
   let mode = 'title';   // title | dialog | commands | minigame | end
   let lastCmdAt = 0;
@@ -167,7 +169,7 @@
         showSay(ev);
         ui.commands.classList.add('busy');   // 枠は残したまま薄くする
         render();
-        if (SKIP) setTimeout(step, 0);
+        if (SKIP && !(STOP && ev.text.includes(STOP))) setTimeout(step, 0);
         break;
       case 'minigame':
         mode = 'minigame';
@@ -342,19 +344,24 @@
     fridge: '#e8e8f0', fridgeDark: '#c0c0c8', screen: '#203040', screenText: '#d0f0ff', yellow: '#f8e070', brown: '#805030',
     blue: '#78b0e0', pink: '#f48ab4', cabinet: '#d8c8a8', counter: '#c8c8d0',
   };
+  // 位置の名前は、状態の位置（!葵 ゆか など）と、反応の中で寄る位置（!いち 葵 つくえあしもと。状態は変えない）の両方を引く
   const LAYOUTS = {
     room: {
       茜: { つくえ: [36, 116], ソファ: [204, 140], ゆか: [140, 140], たち: [140, 140] },
-      葵: { ゆか: [120, 140], つくえ: [78, 104], ソファ: [172, 132], となり: [187, 132] },   // となり = ソファで茜にくっつく
-      葵人間: { ゆか: [168, 140], ソファ: [172, 140], ソファちかく: [178, 140], ソファぴったり: [184, 140] },   // 終章: 甘さで距離が変わる
-      defaults: ['マグ', 'ノートPC', 'ペンたて', 'ほん'],
-      props: { マグ: [90, 104], ノートPC: [46, 104], ペンたて: [100, 104], ほん: [104, 104], けしごむ: [86, 104], スマホ: [86, 104], かつおぶし: [112, 140], みず: [122, 140] },
+      葵: {
+        ゆか: [120, 140], つくえ: [78, 104], ソファ: [172, 132], となり: [187, 132],   // となり = ソファで茜にくっつく
+        つくえあしもと: [44, 140], ソファあしもと: [186, 140],   // 茜の足元（机の前・ソファの前）
+        つくえのひざ: [36, 106],   // 机の後ろ、茜の膝の上。頭だけ机から出る（render で机より先に描く）
+      },
+      葵人間: { ゆか: [168, 140], ソファ: [172, 140], ソファちかく: [178, 140], ソファぴったり: [188, 140], ネコのよこ: [156, 140] },   // 終章: 甘さで距離が変わる。ネコのよこ = 床のネコ茜のそば
+      defaults: ['マグ', 'ノートPC', 'ペンたて', 'ほん', 'けしごむ'],
+      props: { マグ: [90, 104], ノートPC: [46, 104], ペンたて: [100, 104], ほん: [104, 104], けしごむ: [82, 104], スマホ: [86, 104], かつおぶし: [112, 140], みず: [122, 140] },
       floorDrop: { ペンたて: [114, 140], けしごむ: [118, 140], ほん: [120, 140], マグ: [116, 140], スマホ: [116, 140] },
       slots: [[72, 104], [26, 104], [60, 104]],
     },
     town: {
-      茜: { たち: [128, 140], ベンチ: [180, 131], だっこ: [128, 140] },   // ベンチ = お尻が座面（y 124〜128）に来る高さ
-      葵: { ゆか: [92, 140], ベンチ: [163, 128], ベンチよこ: [148, 140] },   // ベンチ = 座面の上、茜の隣。ベンチよこ = ベンチの足元
+      茜: { たち: [128, 140], ベンチ: [190, 131], だっこ: [128, 140] },   // ベンチ = 右端。お尻が座面（y 124〜128）に来る高さ
+      葵: { ゆか: [92, 140], ベンチ: [168, 128], ベンチよこ: [174, 140], あしもと: [112, 140] },   // ベンチ = 座面の真ん中、茜の隣。ベンチよこ = 座った茜の足元。あしもと = 立った茜の足元
       葵人間: {},
       defaults: [],
       props: {},
@@ -362,12 +369,12 @@
       slots: [[40, 140], [60, 140]],
     },
     kitchen: {
-      茜: { テーブル: [136, 116] },
-      葵: { ゆか: [64, 140], テーブル: [150, 104] },
+      茜: { テーブル: [136, 116], ゆか: [88, 140], 冷蔵庫: [222, 140] },   // ゆか = テーブルの手前に出てくる（遊ぶ・撫でる）。冷蔵庫 = 冷蔵庫の前
+      葵: { ゆか: [64, 140], テーブル: [112, 104], あしもと: [122, 140], ごはんまえ: [56, 140] },   // テーブル = プリンのすぐ左（茜はプリンの向こう側）
       defaults: [],
-      props: { プリン: [118, 104], スプーン: [132, 104], 小さいスプーン: [192, 104], スマホ: [168, 104], ネコごはん: [32, 140], ごはんの小皿: [40, 140], ねこじゃらし: [52, 140], 猫砂: [16, 140], みず: [50, 140] },
+      props: { プリン: [124, 104], スプーン: [140, 104], 小さいスプーン: [192, 104], スマホ: [178, 104], ネコごはん: [32, 140], ごはんの小皿: [40, 140], ねこじゃらし: [52, 140], 猫砂: [16, 140], みず: [50, 140] },
       floorDrop: { スプーン: [104, 140] },
-      slots: [[106, 104], [112, 104], [180, 104]],
+      slots: [[156, 104], [166, 104], [186, 104]],
     },
   };
   const sprites = rasterize(DATA.art);
@@ -549,21 +556,26 @@
       if (kind === 'room') drawRoomBack(time); else drawKitchenBack();
       rect(0, 118, 256, 2, C.base);
     }
+    const spot = v.spot || {};   // 反応の中で寄った位置（状態の位置より優先）
     const akaneCat = E.state.茜すがた === 'ネコ';
-    let ap = L.茜[E.state.茜] || (akaneCat ? L.茜.ゆか : null);
+    let ap = (spot.茜 && L.茜[spot.茜]) || L.茜[E.state.茜] || (akaneCat ? L.茜.ゆか : null);
     if (ap) ap = tween('茜', ap[0], ap[1]);
     const seated = (kind === 'room' && E.state.茜 === 'ソファ') || (kind === 'town' && E.state.茜 === 'ベンチ');
-    if (ap && !akaneCat && !seated) drawSprite(humanSprite('akane_stand'), ap[0], ap[1]);   // 机の後ろに立つ（座って見える）
-    if (kind === 'room') drawRoomFront(); else if (kind === 'kitchen') drawKitchenFront(); else drawTownFront(place);
-    if (ap && !akaneCat && seated) drawSprite(humanSprite('akane_sit'), ap[0], ap[1]);       // ソファやベンチの上に全身
-    if (ap && akaneCat) drawSprite('cat_akane', ap[0], ap[1]);                                 // 隠しED: ネコの茜
-    drawProps(L);
+    // 葵の位置と絵を先に決める（描く順は、机の後ろ・膝の上だけ家具より先）
     const human = E.state.すがた === 'にんげん';
     let gp, sp;
     if (human) { gp = (L.葵人間 && L.葵人間[E.state.葵]) || [168, 140]; sp = humanSprite(String(E.state.葵).startsWith('ソファ') ? 'aoi_sit' : 'aoi_stand'); }
     else if (E.state.葵 === 'だっこ' && ap) { gp = [ap[0] + 6, ap[1] - 12]; sp = 'cat_sit'; }   // 茜の腕の中
-    else { gp = L.葵[E.state.葵]; sp = v.pose.葵 === 'ねころぶ' ? 'cat_lie' : 'cat_sit'; }
-    if (gp) { gp = tween('葵', gp[0], gp[1]); drawSprite(sp, gp[0], gp[1]); }
+    else { gp = (spot.葵 && L.葵[spot.葵]) || L.葵[E.state.葵]; sp = v.pose.葵 === 'ねころぶ' ? 'cat_lie' : 'cat_sit'; }
+    if (gp) gp = tween('葵', gp[0], gp[1]);
+    const onLap = !human && spot.葵 === 'つくえのひざ' && kind === 'room';   // 机の後ろ、茜の膝の上: 頭だけ机から出る
+    if (ap && !akaneCat && !seated) drawSprite(humanSprite('akane_stand'), ap[0], ap[1]);   // 机の後ろに立つ（座って見える）
+    if (gp && onLap) drawSprite(sp, gp[0], gp[1]);
+    if (kind === 'room') drawRoomFront(); else if (kind === 'kitchen') drawKitchenFront(); else drawTownFront(place);
+    if (ap && !akaneCat && seated) drawSprite(humanSprite('akane_sit'), ap[0], ap[1]);       // ソファやベンチの上に全身
+    if (ap && akaneCat) drawSprite('cat_akane', ap[0], ap[1]);                                 // 隠しED: ネコの茜
+    drawProps(L);
+    if (gp && !onLap) drawSprite(sp, gp[0], gp[1]);
     if (v.pose.茜 === 'なでる' && gp) drawHeart(gp[0] + 10, gp[1] - 22);
     if (fadeAlpha > 0) rect(0, 0, 256, 160, `rgba(0,0,0,${fadeAlpha})`);
   }
@@ -585,6 +597,7 @@
     ui.commands.classList.add('hidden');
     ui.minigame.classList.remove('hidden');
     ui['d-next'].classList.add('hidden');
+    if (GAME_SKIP) { setTimeout(() => endGame('せいこう', ev.name === 'よみちさんぽ' ? { さんぽ: 'ぴったり' } : undefined), 0); return; }
     if (ev.name === 'キーボードれんだ') kbGame(ev.params);
     else if (ev.name === 'プリンまわし') puddingGame(ev.params);
     else if (ev.name === 'よみちさんぽ') walkGame(ev.params);
