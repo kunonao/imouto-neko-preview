@@ -277,6 +277,7 @@
       E.commands().forEach(c => frag.appendChild(button(c.targets.length ? c.base + ' →' : c.base, () => c.targets.length ? renderCommands(c) : doCommand(c.base))));
     }
     ui.commands.replaceChildren(frag);
+    ui.commands.classList.toggle('many', ui.commands.children.length > 9);   // 4 段目が要るときは段を低くする
     ui.commands.classList.remove('hidden');
     ui.commands.classList.remove('busy');
   }

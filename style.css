@@ -143,6 +143,8 @@ button.big { min-width: 240px; font-size: 20px; }
   overflow: hidden;
 }
 #commands { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: calc(52px * var(--s)); gap: var(--gap); }
+#commands.many { grid-auto-rows: calc(42px * var(--s)); gap: calc(5px * var(--s)); }   /* 10 個以上のときは 4 段に詰める（枠からはみ出さない） */
+#commands.many button { min-height: calc(42px * var(--s)); padding-top: calc(2px * var(--s)); padding-bottom: calc(2px * var(--s)); }
 #commands.busy { pointer-events: none; opacity: .4; }   /* 会話中はコマンドを薄く（枠はそのまま） */
 
 /* ミニゲームはコマンド枠（220）の中に収める。内側は約 188 × 358（縦長）／ 188 × 272（横長） */
