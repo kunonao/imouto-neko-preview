@@ -751,7 +751,9 @@
         if (pool.length) {
           const [kind, type] = pool[Math.floor(Math.random() * pool.length)];
           if (type === '誘') lastTemptEnd = t;
-          items.push({ x: 270, lane: Math.floor(Math.random() * 3), kind, type, seed: Math.random() * 100 });
+          // 誘惑は端の道（奥か手前）にだけ出す。真ん中に出すと、どちらの道にいても隣になり避けようがない
+          const lane = type === '誘' ? (Math.random() < 0.5 ? 0 : 2) : Math.floor(Math.random() * 3);
+          items.push({ x: 270, lane, kind, type, seed: Math.random() * 100 });
         }
         nextItem = t + plan.gap[0] + Math.random() * plan.gap[1] + (quiet ? 1500 : 0);
       }
