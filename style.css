@@ -25,11 +25,13 @@ html, body {
   font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
   -webkit-text-size-adjust: 100%;
   overflow: hidden;   /* ページはスクロールしない。遊ぶ画面の大きさは fitCanvas() が見えている高さから決める */
+  overflow: clip;     /* hidden はボタンにフォーカスが移ると中がずれる（プログラム的にスクロールできる）ので、対応ブラウザでは clip */
 }
 #app {
   height: 100vh;
   height: 100dvh;   /* スマホのアドレスバーが出入りしても「見えている高さ」に追従する */
   overflow: hidden;
+  overflow: clip;
   display: flex; flex-direction: column; align-items: center;
   padding: 8px 12px calc(12px + env(safe-area-inset-bottom));
 }

@@ -597,12 +597,14 @@
     const cs = getComputedStyle(ui.app);
     const vw = ui.app.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     const vh = ui.app.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-    const landscape = vw > vh && vw >= 600;
-    const [dw, dh] = DESIGN[landscape ? 'landscape' : 'portrait'];
-    const s = Math.min(vw / dw, vh / dh, 1.6);
+    // 縦長・横長のうち、大きく出せる方の並びにする（横長の窓や、ブラウザの拡大表示で狭くなった画面でも必ず収まる）
+    const sp = Math.min(vw / DESIGN.portrait[0], vh / DESIGN.portrait[1]);
+    const sl = Math.min(vw / DESIGN.landscape[0], vh / DESIGN.landscape[1]);
+    const landscape = sl > sp;
+    const s = Math.min(landscape ? sl : sp, 1.6);
     ui.play.classList.toggle('portrait', !landscape);
     ui.play.classList.toggle('landscape', landscape);
-    ui.play.style.setProperty('--s', String(Math.max(0.35, s)));
+    ui.play.style.setProperty('--s', String(Math.max(0.1, s)));   // 下限は付けない（付けると枠がはみ出し、ボタンを押したときに中がスクロールしてしまう）
   }
 
   // ---------- ミニゲーム ----------
