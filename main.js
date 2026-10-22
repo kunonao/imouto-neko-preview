@@ -8,6 +8,17 @@
   const SAVE_KEY = 'imouto-neko-v1';
   const SETTINGS_KEY = 'imouto-neko-settings';
   const ENDINGS_KEY = 'imouto-neko-endings';
+  const ROUTES_KEY = 'imouto-neko-routes';   // 見た「クリアのしかた」（章ごとの終わり方）: ["1:冷めたお茶", ...]
+  // 台本の「!set ルート=名前」を章ごとに集めた一覧（登場順）
+  const ROUTES = (() => {
+    const per = [];
+    const walk = (items, names) => items.forEach(it => {
+      if (it.type === 'cmd' && it.name === 'set') { const m = it.args.match(/^ルート=(.+)$/); if (m && !names.includes(m[1])) names.push(m[1]); }
+      if (it.type === 'minigame') Object.values(it.branches).forEach(b => walk(b, names));
+    });
+    DATA.chapters.forEach(ch => { const names = []; ch.blocks.forEach(b => walk(b.items, names)); per.push(names); });
+    return per;
+  })();
   // 台本の「!エンド 名前」を集めた一覧（登場順）
   const ENDINGS = (() => {
     const names = [];
@@ -55,6 +66,8 @@
   }
   function seenEndings() { const a = store.get(ENDINGS_KEY); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; }
   function rememberEnding(name) { const a = seenEndings(); if (name && !a.includes(name)) { a.push(name); store.set(ENDINGS_KEY, a); } }
+  function seenRoutes() { const a = store.get(ROUTES_KEY); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; }
+  function rememberRoute(ci, name) { const k = `${ci + 1}:${name}`; const a = seenRoutes(); if (name && name !== 'なし' && !a.includes(k)) { a.push(k); store.set(ROUTES_KEY, a); } }
   function loadProgress() {
     const d = store.get(SAVE_KEY);
     if (!d || !d.snap || d.snap.v !== 1 || !Number.isInteger(d.snap.chapterIndex)) return null;
@@ -239,8 +252,13 @@
     const hasNext = !!DATA.chapters[E.chapterIndex + 1];
     if (hasNext) {
       const c = E.counts();
+      const route = E.state.ルート && E.state.ルート !== 'なし' ? E.state.ルート : '';
+      if (route) rememberRoute(E.chapterIndex, route);
+      const names = ROUTES[E.chapterIndex] || [];
+      const seenHere = seenRoutes().filter(k => k.startsWith(`${E.chapterIndex + 1}:`)).length;
       ui['ce-title'].textContent = E.chapter.title + '　クリア';
-      ui['ce-text'].textContent = `はっけん ${c.found} / ${c.total}　　とくべつ ${c.special} / ${c.specialTotal}`;
+      ui['ce-text'].textContent = (route ? `クリアのしかた: 「${route}」（${seenHere} / ${names.length} 通り）\n\n` : '') +
+        `はっけん ${c.found} / ${c.total}　　とくべつ ${c.special} / ${c.specialTotal}`;
       ui['btn-next'].textContent = 'つぎの章へ';
       ui['btn-next'].onclick = () => startChapter(E.chapterIndex + 1);
     } else {
@@ -343,6 +361,16 @@
     ENDINGS.forEach(n => ul.appendChild(el('li', seen.includes(n) ? '' : 'todo', seen.includes(n) ? n : '？？？')));
     frag.appendChild(ul);
     frag.appendChild(el('p', 'note', '一日の過ごし方（よく食べた、よく甘えた、など）で変わります。条件を満たした終わり方が複数あれば、終章の前に選べます'));
+    // 章ごとの「クリアのしかた」
+    const routesSeen = seenRoutes(), totalRoutes = ROUTES.reduce((n, r) => n + r.length, 0);
+    frag.appendChild(el('h2', null, `章のクリアのしかた ${routesSeen.length} / ${totalRoutes}`));
+    DATA.chapters.forEach((ch, ci) => {
+      if (!ROUTES[ci].length) return;
+      const ul2 = el('ul');
+      ROUTES[ci].forEach(n => { const ok = routesSeen.includes(`${ci + 1}:${n}`); ul2.appendChild(el('li', ok ? '' : 'todo', ok ? n : '？？？')); });
+      frag.appendChild(el('p', 'small', ch.title));
+      frag.appendChild(ul2);
+    });
     frag.appendChild(button('もどる', openMenu));
     p.replaceChildren(frag);
   }
