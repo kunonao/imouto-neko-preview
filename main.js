@@ -269,6 +269,7 @@
     ui['d-next'].classList.toggle('hidden', !next);
   }
   function showSay(it) {
+    if (it.hint) { setDialog('', it.text, 'hint', true); return; }   // ヒント: 話者名なし（葵の心の声ではない）
     const sp = it.speaker;
     let name = '', cls = 'nare';
     if (sp === '茜') { name = '茜'; cls = 'akane'; }

@@ -166,6 +166,9 @@ h2 { font-weight: normal; }
 .dialog.kokoro #d-text { color: #c8e0ff; }
 .dialog.akokoro #d-text { color: #ffd0e0; }
 .dialog.nare #d-text { opacity: .85; }
+.dialog.hint #d-name { display: none; }                       /* ヒントは話者なし。「ヒント」の小さな見出しだけ */
+.dialog.hint #d-text { opacity: .9; }
+.dialog.hint #d-text::before { content: "ヒント"; display: block; font-size: calc(13px * var(--s)); opacity: .6; }
 #d-next { position: absolute; right: calc(10px * var(--s)); bottom: calc(4px * var(--s)); font-size: calc(12px * var(--s)); animation: blink 1s infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 

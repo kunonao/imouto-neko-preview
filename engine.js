@@ -136,6 +136,7 @@
       const b = this.blocksFor(key).find(x => matches(x.conds, this.state));
       if (!b) return false;
       if (key === 'ヒント') this.hints++;
+      this.hintMode = key === 'ヒント';   // ヒントの行は葵の心の声ではない（話者名を出さない・音声も作らない）
       this.pending = [];
       this.queue = this.enter(b);
       return true;
@@ -156,7 +157,7 @@
         const it = this.queue.shift();
         if (it.cond && !matches(it.cond, this.state)) continue;   // ?条件 の行。合わなければ飛ばす
         if (it.type === 'disc') { this.pending.push(it); continue; }   // 条件付きのはっけん
-        if (it.type === 'say') return it;
+        if (it.type === 'say') return this.hintMode ? Object.assign({}, it, { hint: true }) : it;
         if (it.type === 'minigame') { this.waitingGame = it; return { type: 'minigame', name: it.name, params: it.params }; }
         const ev = this.apply(it);
         if (ev) return ev;
