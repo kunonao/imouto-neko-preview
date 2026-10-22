@@ -212,7 +212,11 @@
         case 'エンド': this.ending = a; return null;   // 到達したエンディングの名前
         case '場面': v.scene = a; v.props = {}; v.fallen = {}; v.hidden = {}; v.spot = {}; v.pc = ''; return { type: 'scene', scene: a };
         case '暗転': return { type: 'fade' };
-        case 'もくひょう': v.objective = a; return { type: 'objective', text: a };
+        case 'もくひょう': {   // 章の最初だけ全画面のカード。途中で目標が変わるときは帯と札の更新だけ（カットインを二度出さない）
+          const first = !v.objectiveShown;
+          v.objective = a; v.objectiveShown = true;
+          return { type: 'objective', text: a, first };
+        }
         case 'クリア': this.cleared = true; this.runCleared[this.chapterIndex] = true; this.queue = []; return null;
         default: return null; // 未知の演出命令は無視（表示側で必要なら足す）
       }

@@ -146,6 +146,7 @@ h2 { font-weight: normal; }
   animation: discin .3s ease-out;
 }
 #disc .special { color: #ffd080; }
+#disc.goal { border-color: var(--frame); color: #ffd080; }   /* 途中で目標が変わったときの札 */
 @keyframes discin { from { transform: translateY(calc(-8px * var(--s))); opacity: 0; } to { transform: none; opacity: 1; } }
 
 #side { display: flex; flex-direction: column; gap: var(--gap); min-height: 0; }
@@ -207,6 +208,9 @@ h2 { font-weight: normal; }
 #minigame button.big { min-width: calc(104px * var(--s)); min-height: calc(44px * var(--s)); font-size: calc(16px * var(--s)); }
 #minigame button.arrow { min-width: calc(64px * var(--s)); min-height: calc(64px * var(--s)); font-size: calc(22px * var(--s)); }
 #minigame button.small { min-height: calc(28px * var(--s)); font-size: calc(12px * var(--s)); opacity: .7; padding: 0 calc(8px * var(--s)); }
+#minigame button.hold { position: relative; overflow: hidden; }
+#minigame button .gauge { position: absolute; left: 0; bottom: 0; height: calc(5px * var(--s)); background: var(--aoi); width: 100%; pointer-events: none; }   /* かける のスタミナ */
+#minigame button.glow { border-color: var(--akane); color: #fff; background: #2a1a28; }   /* いま押せる（寄り道の「みる」） */
 
 #ce-text { white-space: pre-line; }
 
