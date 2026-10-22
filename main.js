@@ -777,10 +777,11 @@
     let waiting = false, ahead = false, lookUntil = 0, fastUntil = 0, cooldownUntil = 0, smileUntil = 0, cueUntil = 0, nodUntil = 0, glanceUntil = 0, lastFree = 0, stumbleUntil = 0, zone = '';
     let detours = 0, waits = 0, overtakes = 0, replies = 0, waited = false, inBand = 0, operable = 0;
     let callAt = 0, callUntil = 0, waitUntil = 0;
-    const items = [];   // { x, lane, kind, type: '物'|'誘', hit, over, seed }
-    const leaves = [];
+    const items = [];   // { x, lane, kind, type: '物'|'誘', hit, over, seed, dy }
     let tempt = null, temptAt = 0;   // 予兆→引かれ 中の誘惑と、始まった時刻
-    let playing = null, playUntil = 0;
+    let playing = null, playUntil = 0;   // 足元の誘惑（草の穂・落ち葉・魚）に止まって遊んでいる
+    let catX = CAT_X;                    // 猫の画面上の位置。蝶を追いかけるときだけ後ろ（左）へ動く
+    let chase = null;                    // 蝶の追いかけ { it, phase: 'lead'|'leave'|'return', until }
 
     // ── 区間ごとの予定（秒。判断は 3 秒以上離す）。arrive = 猫のところへ届く時刻。茜の道替えは手本（採点しない） ──
     const plan = {
@@ -819,10 +820,16 @@
 
     // ── 毎フレーム ──
     const view = {};
+    // 誘惑に負けた。蝶なら、前の茜ではなく後ろへ飛ぶ蝶についていってしまう（物理的に遅れる）。足元の物なら、その場で止まって遊ぶ
     function startPlay(it, when) {
-      playing = it; playUntil = when + 1500; detours++; lane = it.lane; tempt = null;
-      event(`……ちょっとだけ。茜「${it.kind === 'ちょう' ? '蝶か。' : it.kind === 'さかな' ? '魚屋か。' : ''}見終わってから行こか」`, 2500);
-      for (let i = 0; i < 6; i++) leaves.push({ x: CAT_X + 8 + Math.random() * 12, y: FLOOR - 4 - Math.random() * 10, vx: 10 + Math.random() * 20, vy: -20 - Math.random() * 20 });
+      detours++; lane = it.lane; tempt = null;
+      if (it.kind === 'ちょう') {
+        chase = { it, phase: 'lead', until: when + 1500 }; it.dy = 0;
+        event('……蝶が後ろへ。足が、勝手についていく。茜「こら、そっちちゃう」', 2500);
+      } else {
+        playing = it; playUntil = when + 1500;
+        event(`……ちょっとだけ。茜「${it.kind === 'さかな' ? '魚屋か。' : ''}見終わってから行こか」`, 2500);
+      }
     }
     function tick(t, dt, now) {
       const T = t / 1000;
@@ -880,6 +887,23 @@
         else if (now - temptAt >= 2000) startPlay(tempt, now);
       }
       if (playing) catSpeed = 0;
+      // 蝶の追いかけ: 背景も茜も止まり、猫だけ後ろへ走って、蝶が飛び去ったら戻ってくる
+      if (chase) {
+        catSpeed = 0;
+        const it = chase.it;
+        if (chase.phase === 'lead') {
+          it.x -= 30 * dt; it.dy -= 3 * dt;
+          catX += ((it.x + 2) - catX) * Math.min(1, dt * 4);
+          if (catX < 14) catX = 14;
+          if (now >= chase.until) { chase.phase = 'leave'; chase.until = now + 800; event('……あ。飛んでいってしまいました'); }
+        } else if (chase.phase === 'leave') {
+          it.x -= 8 * dt; it.dy -= 50 * dt;
+          if (now >= chase.until) { it.over = true; it.hit = true; chase.phase = 'return'; chase.until = now + 1200; event('茜「……戻っといで。待ったるから」', 2000); }
+        } else {
+          catX += (CAT_X - catX) * Math.min(1, dt * 5);
+          if (now >= chase.until || Math.abs(catX - CAT_X) < 1) { catX = CAT_X; chase = null; event('茜「ほな、行こか」'); }
+        }
+      }
 
       // 位置。引かれている間は体だけ誘惑の方へ寄る（足元の道は変えない）
       laneY += (LANES[lane] - laneY) * 0.3;
@@ -887,7 +911,7 @@
       view.lean = tempt && now - temptAt >= 800 ? Math.sign(LANES[tempt.lane] - LANES[lane]) * 3 : 0;
 
       // 距離
-      const tempting = !!tempt || !!playing;
+      const tempting = !!tempt || !!playing || !!chase;
       let akSpeed;
       if (!F.dash) akSpeed = catSpeed;   // 区間1: 茜が歩幅を合わせる（距離は固定）
       else if (tempting || callAt) akSpeed = catSpeed;   // 誘惑中・呼びかけ中は距離を保つ
@@ -900,8 +924,6 @@
       scroll += catSpeed * dt;
       for (const it of items) it.x -= catSpeed * dt;
       while (items.length && items[0].x < -24) items.shift();
-      leaves.forEach(l => { l.x += l.vx * dt; l.y += l.vy * dt; l.vy += 60 * dt; });
-      while (leaves.length && leaves[0].y > FLOOR + 4) leaves.shift();
 
       if (F.dash && !tempting && !callAt) {
         if (!waiting && !ahead && now >= cooldownUntil && d >= 72) { waiting = true; waits++; cueUntil = now + 1200; event('茜「はよおいで。待ったるから」', 2500); }
@@ -916,7 +938,7 @@
         }
       }
       view.now = now; view.stumbling = stumbling; view.smile = now < smileUntil; view.cue = now < cueUntil || !!callAt; view.nod = now < nodUntil; view.glance = now < glanceUntil;
-      view.pull = !!tempt; view.play = !!playing; view.near = items.some(it => it.near && !it.hit && !it.over);
+      view.pull = !!tempt; view.play = !!playing; view.chase = !!chase; view.catX = catX; view.near = items.some(it => it.near && !it.hit && !it.over);
     }
     function grade() {
       if (carried) return 'だっこ';
@@ -930,7 +952,7 @@
 
     // ── 絵 ──
     const drawItem = it => {
-      const x = Math.round(it.x), y = LANES[it.lane], ph = Math.floor((scroll + (it.seed || 0)) / 6) % 2;
+      const x = Math.round(it.x), y = LANES[it.lane] + Math.round(it.dy || 0), ph = Math.floor((Date.now() / 100 + (it.seed || 0))) % 2;
       switch (it.kind) {
         case 'みずたまり': rect(x, y - 2, 12, 2, '#5a8ac8'); rect(x + 2, y - 3, 8, 1, '#a0c8f0'); break;
         case 'こえだ': rect(x, y - 2, 10, 1, '#6a4020'); rect(x + 6, y - 4, 1, 2, '#6a4020'); rect(x + 3, y - 3, 1, 1, '#6a4020'); break;
@@ -953,8 +975,8 @@
         else { rect(x, 50, 40, 68, '#d8c8b0'); rect(x + 2, 64, 36, 8, C.sofa); rect(x + 14, 90, 12, 28, '#504030'); }
       }
       const bob = Math.floor(scroll / 8) % 2, now = view.now || Date.now();
-      leaves.forEach(l => rect(Math.round(l.x), Math.round(l.y), 2, 2, '#d08030'));
-      const layers = items.map(it => ({ y: LANES[it.lane], f: () => drawItem(it) }));
+      const cx0 = Math.round(view.catX || CAT_X);
+      const layers = items.filter(it => !(it.over && it.kind === 'ちょう' && (it.dy || 0) < -60)).map(it => ({ y: LANES[it.lane], f: () => drawItem(it) }));
       const ax = Math.round(CAT_X + d), ay = Math.round(akY);
       layers.push({ y: akY + (d < 0 ? -0.2 : 0.2), f: () => {
         drawSprite(humanSprite('akane_stand'), ax, ay - (view.nod ? 1 : bob));
@@ -965,9 +987,10 @@
       } });
       if (!carried) layers.push({ y: laneY + 0.1, f: () => {
         const cy = Math.round(laneY) + (view.lean || 0);
-        if (!(view.stumbling && Math.floor(now / 80) % 2)) drawSprite('cat_sit', CAT_X, cy - (view.play ? 0 : bob));
-        if (view.play) { rect(CAT_X - 1, cy - 24, 2, 4, C.yellow); rect(CAT_X - 1, cy - 19, 2, 1, C.yellow); }   // 「！」= 遊んでいる
-        else if (view.pull || view.near) { rect(CAT_X - 2, cy - 24, 4, 1, C.white); rect(CAT_X + 1, cy - 23, 1, 2, C.white); rect(CAT_X, cy - 21, 1, 1, C.white); rect(CAT_X, cy - 19, 1, 1, C.white); }   // 「？」= 気になる
+        const chaseBob = view.chase ? Math.floor(now / 90) % 2 : bob;   // 追いかけ中は小走り
+        if (!(view.stumbling && Math.floor(now / 80) % 2)) drawSprite('cat_sit', cx0, cy - (view.play ? 0 : chaseBob));
+        if (view.play || view.chase) { rect(cx0 - 1, cy - 24, 2, 4, C.yellow); rect(cx0 - 1, cy - 19, 2, 1, C.yellow); }   // 「！」= 夢中
+        else if (view.pull || view.near) { rect(cx0 - 2, cy - 24, 4, 1, C.white); rect(cx0 + 1, cy - 23, 1, 2, C.white); rect(cx0, cy - 21, 1, 1, C.white); rect(cx0, cy - 19, 1, 1, C.white); }   // 「？」= 気になる
       } });
       layers.sort((a, b) => a.y - b.y).forEach(l => l.f());
     }
