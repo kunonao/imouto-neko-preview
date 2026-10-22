@@ -728,21 +728,22 @@
     render();
     step({ result, set });
   }
-  // 3章: お姉ちゃんについて歩く（v4。一本のゲームに戻し、区間が進むごとに要素が増える。Codex 第20回と合意）
-  //   役割を固定する: 誘惑は「道替え」で振り切る／距離は「ダッシュ」／呼びかけは「なく」
-  //   土台（全区間）: 3 本の道を ▲▼ で変える。足元の障害は道を変えてよける（当たると 0.5 秒つまずくだけ）。
-  //     誘惑（蝶・草の穂・落ち葉・魚）は端の道にだけ出る。同じ道でも隣の道でも、予兆「？」0.8 秒 → 引かれ 1.2 秒。その 2 秒以内に
-  //     誘惑から離れる方へ 1 段動けば振り切る。放っておくと 1.5 秒遊ぶ（寄り道。茜が待つ）。2 本離れていれば無関係
+  // 3章: お姉ちゃんについて歩く（v5。一本のゲーム・段階式・各区間 60/55/55 秒。Codex 第20・21回と合意）
+  //   役割を固定する: 誘惑は「離れる方へ道替え」で振り切る／距離は「ダッシュ」／呼びかけは「なく」
+  //   土台（全区間）: 3 本の道を ▲▼。足元の障害は道を変えてよける（当たると 0.5 秒つまずくだけ）。
+  //     誘惑は端の道にだけ出る。予兆「？」0.8 秒 → 体が寄る 1.2 秒。その 2 秒以内に誘惑から離れる方へ 1 段動けば振り切る。
+  //     放っておくと寄り道: 蝶 = 後ろへ飛ぶ蝶を追いかけて戻ってくる／葉・草の穂・落ち葉 = 前足で触る／魚屋 = 立ち止まって鼻を上げる。茜は待つ
   //   区間2 から: 距離とダッシュ（茜 20 px/秒・猫 18・ダッシュ 34。帯 28〜52。72 で茜が待つ、12 で追い抜く）
-  //   区間3 から: 呼びかけ（茜が振り向いて声をかける。行動ボタンが「なく」に変わる。2 秒以内に返事）
-  //   成績（ぴったり／ふつう）は川原に着いたとき一度だけ: 寄り道なし・返事 2 回以上・距離の帯に 60% 以上。
-  //   途中の到着では「実際にあった行動の印（よりみち／おくれ／さきばしり）」だけ伝える。失敗も罰もない。スキップは ふつう
-  let walkMemo = { detours: 0, inBand: 0, operable: 0, replies: 0 };   // 3 区間を通した記録（区間1 の開始で消す）
+  //   区間3 から: 呼びかけ（行動ボタンが「なく」に変わる。2 秒以内に返事）
+  //   三部構成: 導入 10 秒（静か・手本 1 つ）→ 中盤（出来事 6〜7 件。判断の後は 3 秒以上空け、途中に 6 秒の休み）→ 終盤 10 秒（静か。茜の小話）
+  //   成績は川原で一度だけ: ぴったり = 返事 2 回以上 ＋ 区間2・3 の通常歩行で適距離に累計 10 秒。はっけんは行動の印（よりみち／おくれ／さきばしり）
+  //   失敗も罰もない。スキップは ふつう（印なし）
+  let walkMemo = { inBand: 0, replies: 0 };   // 3 区間を通した記録（区間1 の開始で消す）
   function walkGame(p) {
     const seg = Number(p.区間) || 1;
     const carried = !!p.だっこ;
-    const total = (Number(p.長さ) || 18) * 1000;
-    if (seg === 1) walkMemo = { detours: 0, inBand: 0, operable: 0, replies: 0 };
+    const total = (Number(p.長さ) || 55) * 1000;
+    if (seg === 1) walkMemo = { inBand: 0, replies: 0 };
     const F = { dash: seg >= 2, calls: seg >= 3 };
     const V = { cat: 18, ak: 20, dash: 34 };
     const t0 = Date.now();
@@ -774,22 +775,59 @@
     // ── 状態 ──
     let lane = 1, laneY = LANES[1], akLane = 1, akY = LANES[1];
     let d = F.dash ? 40 : 56, stamina = 1, dashing = false, needRelease = false, catSpeed = V.cat;
-    let waiting = false, ahead = false, lookUntil = 0, fastUntil = 0, cooldownUntil = 0, smileUntil = 0, cueUntil = 0, nodUntil = 0, glanceUntil = 0, lastFree = 0, stumbleUntil = 0, zone = '';
-    let detours = 0, waits = 0, overtakes = 0, replies = 0, waited = false, inBand = 0, operable = 0;
-    let callAt = 0, callUntil = 0, waitUntil = 0;
-    const items = [];   // { x, lane, kind, type: '物'|'誘', hit, over, seed, dy }
-    let tempt = null, temptAt = 0;   // 予兆→引かれ 中の誘惑と、始まった時刻
-    let playing = null, playUntil = 0;   // 足元の誘惑（草の穂・落ち葉・魚）に止まって遊んでいる
-    let catX = CAT_X;                    // 猫の画面上の位置。蝶を追いかけるときだけ後ろ（左）へ動く
-    let chase = null;                    // 蝶の追いかけ { it, phase: 'lead'|'leave'|'return', until }
+    let waiting = false, ahead = false, stopUntil = 0, fastUntil = 0, cooldownUntil = 0, smileUntil = 0, cueUntil = 0, nodUntil = 0, stumbleUntil = 0, zone = '';
+    let detours = 0, waits = 0, overtakes = 0, replies = 0, waited = false, inBand = 0, lastDetour = '';
+    let callAt = 0, callUntil = 0, waitUntil = 0, beside = false;
+    const items = [];   // { x, lane, kind, type: '物'|'誘', style: 'chase'|'touch'|'sniff', hit, over, seed, dy }
+    let tempt = null, temptAt = 0, temptGap = 0;
+    let playing = null, playUntil = 0, playStyle = '';
+    let catX = CAT_X, chase = null;
 
-    // ── 区間ごとの予定（秒。判断は 3 秒以上離す）。arrive = 猫のところへ届く時刻。茜の道替えは手本（採点しない） ──
-    const plan = {
-      1: { changes: [5, 13], items: [{ arrive: 8, kind: 'ちょう', type: '誘' }, { arrive: 11, kind: 'みずたまり', type: '物' }, { arrive: 16, kind: 'ちょう', type: '誘' }], calls: [], fast: [], look: [], beside: 0 },
-      2: { changes: [8.5], items: [{ arrive: 7, kind: 'こえだ', type: '物' }, { arrive: 10, kind: 'くさのほ', type: '誘' }, { arrive: 15, kind: 'おちば', type: '誘' }], calls: [], fast: [{ t: 3, len: 3 }], look: [12.5], beside: 0 },
-      3: { changes: [], items: [{ arrive: 5.5, kind: 'あきかご', type: '物' }, { arrive: 11, kind: 'さかな', type: '誘' }], calls: [{ t: 3, s: 'そこ、おる？' }, { t: 8.5, s: 'こっちやで' }, { t: 14, s: '……一緒に行こか' }], fast: [], look: [], beside: 10 },
-    }[seg] || { changes: [], items: [], calls: [], fast: [], look: [], beside: 0 };
-    let nextChange = 0, nextCall = 0, nextFast = 0, nextLook = 0;
+    // ── 区間ごとの予定（秒）。arrive = 猫のところへ届く時刻。判断が終わってから 3 秒以上空ける ──
+    const TALK = {
+      1: ['茜「葵とな、この道でよう買い食いしてん」', '茜「あの家の犬、葵が怖がんねん。……吠えへんのに」', '茜「この塀の上、昔ネコがおってな。葵が毎日見に来とった」'],
+      2: ['茜「ここのブランコ、葵と取り合いしてん」', '茜「秋はな、葵が落ち葉で栞作るねん」', '茜「水飲み場の水、冷たいんやで。葵、夏はここで顔洗う」'],
+      3: ['茜「葵、ここのコロッケ好きやねん」', '茜「おばちゃん、葵にいっつもおまけしてくれんねん」', '茜「……この時間、店じまい早いなぁ」'],
+    }[seg] || [];
+    const talks = TALK.slice().sort(() => Math.random() - 0.5).slice(0, 2);
+    const PLAN = {
+      1: [ // 60 秒 = 導入 10 ＋ 中盤 40 ＋ 終盤 10
+        { t: 3, type: 'talk' }, { t: 7, type: 'change' },
+        { t: 11, type: 'change' }, { t: 13, type: 'item', kind: 'みずたまり', style: '物' },   // 茜が先に乾いた側へよける（手本）
+        { t: 19, type: 'item', kind: 'ちょう', style: 'chase' },
+        { t: 26, type: 'item', kind: 'みずたまり', style: '物' },
+        { t: 30, type: 'change' },
+        { t: 33, type: 'talk' },   // 6 秒の休み
+        { t: 40, type: 'item', kind: 'はち', style: 'touch' },   // 鉢植えから垂れた葉
+        { t: 45, type: 'item', kind: 'ちょう', style: 'chase' },
+        { t: 52, type: 'talk' },
+      ],
+      2: [ // 55 秒 = 10 ＋ 35 ＋ 10
+        { t: 3, type: 'talk' }, { t: 7, type: 'change' },
+        { t: 12, type: 'fast', len: 3 },
+        { t: 19, type: 'item', kind: 'くさのほ', style: 'touch' },
+        { t: 24, type: 'stop' },
+        { t: 28, type: 'item', kind: 'こえだ', style: '物' },
+        { t: 31, type: 'talk' },   // 6 秒の休み
+        { t: 37, type: 'item', kind: 'おちば', style: 'touch' },
+        { t: 41, type: 'fast', len: 3 },
+        { t: 46, type: 'stop' },
+        { t: 49, type: 'talk' },
+      ],
+      3: [ // 55 秒 = 10 ＋ 35 ＋ 10。最後の呼びかけのあと 10 秒は並んで歩く
+        { t: 4, type: 'call', s: 'そこ、おる？' },
+        { t: 12, type: 'item', kind: 'あきかご', style: '物' },
+        { t: 16, type: 'call', s: '段差、気ぃつけや' },
+        { t: 22, type: 'item', kind: 'さかなや', style: 'sniff' },
+        { t: 28, type: 'call', s: '……おなかすいたな' },
+        { t: 31, type: 'talk' },
+        { t: 37, type: 'call', s: 'もうちょいやで' },
+        { t: 40, type: 'item', kind: 'だんボール', style: '物' },
+        { t: 43, type: 'beside' },
+        { t: 45, type: 'call', s: '……一緒に行こか' },
+      ],
+    }[seg] || [];
+    let talkI = 0;
 
     // ── 操作 ──
     const move = dir => {
@@ -797,7 +835,7 @@
       const to = Math.max(0, Math.min(2, lane + dir));
       if (to === lane) return;
       lane = to;
-      if (tempt && Math.abs(tempt.lane - lane) >= 2) { tempt.over = true; tempt = null; event('……がまん。お姉ちゃんの方へ'); }   // 離れる方へ動いた = 振り切る
+      if (tempt && Math.abs(tempt.lane - lane) > temptGap) { tempt.over = true; tempt = null; event('……がまん。お姉ちゃんの方へ'); }   // 離れる方へ動いた = 振り切る（同じ道からでも 1 段でよい）
     };
     up.onpointerdown = e => { e.preventDefault(); move(-1); };
     down.onpointerdown = e => { e.preventDefault(); move(1); };
@@ -813,82 +851,83 @@
     act.onpointerup = act.onpointercancel = () => { dashing = false; needRelease = false; };
 
     title.textContent = carried ? '抱っこで進む。何もしなくていい'
-      : seg === 1 ? '住宅街。足元と蝶に気をつけて、お姉ちゃんについていく（▲▼）'
+      : seg === 1 ? '住宅街。お姉ちゃんについていく（▲▼で道を変える）'
       : seg === 2 ? '公園。道を選びながら、ダッシュで距離を合わせる'
       : '商店街。声をかけられたら、返事をする';
-    say(carried ? 'お姉ちゃんの腕の中。ゆられている' : seg === 1 ? '蝶が近づいたら、離れる方の道へ' : seg === 2 ? '離れたら「ダッシュ」。落ち葉には引かれる' : '呼ばれたら、ボタンが「なく」に変わる');
+    say(carried ? 'お姉ちゃんの腕の中。ゆられている' : seg === 1 ? '足元の物はよける。気になる物が近づいたら、離れる方の道へ' : seg === 2 ? '離れたら「ダッシュ」。近すぎたらやすむ' : '呼ばれたら、ボタンが「なく」に変わる');
 
     // ── 毎フレーム ──
     const view = {};
-    // 誘惑に負けた。蝶なら、前の茜ではなく後ろへ飛ぶ蝶についていってしまう（物理的に遅れる）。足元の物なら、その場で止まって遊ぶ
     function startPlay(it, when) {
-      detours++; lane = it.lane; tempt = null;
-      if (it.kind === 'ちょう') {
+      detours++; lane = it.lane; tempt = null; lastDetour = it.kind;
+      if (it.style === 'chase') {
         chase = { it, phase: 'lead', until: when + 1500 }; it.dy = 0;
         event('……蝶が後ろへ。足が、勝手についていく。茜「こら、そっちちゃう」', 2500);
       } else {
-        playing = it; playUntil = when + 1500;
-        event(`……ちょっとだけ。茜「${it.kind === 'さかな' ? '魚屋か。' : ''}見終わってから行こか」`, 2500);
+        playing = it; playUntil = when + 1500; playStyle = it.style; it.hit = true;
+        event(it.kind === 'はち' ? '……葉っぱを、前足でぽん。……鼻先をくすぐられました' : it.kind === 'くさのほ' ? '……鼻先で、ふわ。……くしゅん' : it.kind === 'おちば' ? '……転がる葉を、前足で押さえました。……また逃げた' : '……魚屋さんの前で、鼻が勝手に上を向きます', 2500);
       }
     }
     function tick(t, dt, now) {
       const T = t / 1000;
       if (carried) { scroll += 40 * dt; return; }
-      // 予定: 茜の道替え（手本）
-      if (nextChange < plan.changes.length && T >= plan.changes[nextChange]) {
-        const cands = [0, 1, 2].filter(l => l !== akLane);
-        akLane = cands[Math.floor(Math.random() * cands.length)]; cueUntil = now + 1200;
-        event('茜「こっちの道、行こか」'); nextChange++;
+      const busy = !!tempt || !!playing || !!chase || !!callAt || now < stumbleUntil;
+      // 予定
+      for (const ev of PLAN) {
+        if (ev.done) continue;
+        if (ev.type === 'item') {
+          const lead = (ev.t - T) * V.cat;
+          if (lead > 198) continue;
+          ev.done = true;
+          const isTempt = ev.style !== '物';
+          let ln;
+          if (isTempt) ln = lane === 1 ? (Math.random() < 0.5 ? 0 : 2) : lane;
+          else ln = Math.random() < 0.6 ? lane : Math.floor(Math.random() * 3);
+          items.push({ x: CAT_X + Math.max(0, lead), lane: ln, kind: ev.kind, type: isTempt ? '誘' : '物', style: ev.style, seed: Math.random() * 100 });
+          continue;
+        }
+        if (T < ev.t) continue;
+        if (ev.type === 'talk' && busy) continue;   // 判断中には流さない（少し遅らせる）
+        ev.done = true;
+        if (ev.type === 'change') { const c = [0, 1, 2].filter(l => l !== akLane); akLane = c[Math.floor(Math.random() * c.length)]; cueUntil = now + 1200; event('茜「こっちの道、行こか」'); }
+        else if (ev.type === 'talk') { if (talkI < talks.length) event(talks[talkI++], 3500); }
+        else if (ev.type === 'fast') { fastUntil = now + ev.len * 1000; event('茜の足が、少し速くなった'); }
+        else if (ev.type === 'stop') { stopUntil = now + 1000; cueUntil = now + 1000; event('茜が、立ち止まって振り返った'); }
+        else if (ev.type === 'call') { callAt = now; callUntil = now + 2000; needRelease = dashing; say(`茜「${ev.s}」`); msgUntil = now + 2000; }
+        else if (ev.type === 'beside') beside = true;
       }
-      // 予定: 障害と誘惑。届く時刻から逆算して、右の方に出す（見えてから 1.5 秒以上ある）
-      for (const it of plan.items) {
-        if (it.spawned) continue;
-        const lead = (it.arrive - T) * V.cat;
-        if (lead > 198) continue;
-        it.spawned = true;
-        let ln;
-        if (it.type === '誘') ln = lane === 1 ? (Math.random() < 0.5 ? 0 : 2) : lane;   // 端の道。猫の隣か同じ道（2 本離れた蝶は出さない）
-        else ln = Math.random() < 0.6 ? lane : Math.floor(Math.random() * 3);   // 障害は 6 割が猫の道（よける意味を作る）
-        items.push({ x: CAT_X + Math.max(0, lead), lane: ln, kind: it.kind, type: it.type, seed: Math.random() * 100 });
-      }
-      if (nextFast < plan.fast.length && T >= plan.fast[nextFast].t) { fastUntil = now + plan.fast[nextFast].len * 1000; event('茜の足が、少し速くなった'); nextFast++; }
-      if (nextLook < plan.look.length && T >= plan.look[nextLook]) { lookUntil = now + 1000; cueUntil = now + 1000; event('茜が、立ち止まって振り返った'); nextLook++; }
-      if (F.calls && nextCall < plan.calls.length && T >= plan.calls[nextCall].t) { callAt = now; callUntil = now + 2000; needRelease = dashing; say(`茜「${plan.calls[nextCall].s}」`); msgUntil = now + 2000; nextCall++; }
       if (callAt && now > callUntil) { callAt = 0; callUntil = 0; waited = true; waitUntil = now + 1200; event('茜「……おるな」（足元を確かめた）', 2000); }
       act.textContent = callAt ? 'なく' : 'ダッシュ'; act.appendChild(gauge); act.classList.toggle('glow', !!callAt);
 
-      // 速度（ダッシュ・スタミナ。呼びかけ中・遊んでいる間は走れない）
-      const canDash = F.dash && dashing && stamina > 0 && !ahead && !playing && !callAt;
+      // 速度
+      const canDash = F.dash && dashing && stamina > 0 && !ahead && !playing && !chase && !callAt;
       if (canDash) { stamina = Math.max(0, stamina - dt / 2); catSpeed = V.dash; }
       else { if (!dashing) stamina = Math.min(1, stamina + dt / 2.5); catSpeed = V.cat; }
       gauge.style.width = (stamina * 100) + '%';
       const stumbling = now < stumbleUntil;
       if (stumbling) catSpeed = Math.min(catSpeed, 10);
 
-      // 遊び終わり
       if (playing && now >= playUntil) { playing.over = true; playing = null; }
       // 障害と誘惑
       for (const it of items) {
         if (it.hit || it.over) continue;
         const gap = Math.abs(it.lane - lane);
         if (it.type === '物') {
-          if (gap === 0 && Math.abs(laneY - LANES[it.lane]) < 4 && it.x < CAT_X + 7 && it.x + 12 > CAT_X - 7) { it.hit = true; stumbles(now); }
+          if (gap === 0 && Math.abs(laneY - LANES[it.lane]) < 4 && it.x < CAT_X + 7 && it.x + 12 > CAT_X - 7) { it.hit = true; stumbleUntil = now + 500; event(it.kind === 'みずたまり' ? '……片足、ぷるっ。茜「濡れたか？」' : '茜「大丈夫かー？」'); }
           continue;
         }
-        it.near = !playing && gap <= 1 && it.x > CAT_X - 8 && it.x < CAT_X + 60;
-        if (!tempt && !playing && gap <= 1 && it.x - CAT_X <= 36 && it.x > CAT_X - 8) {   // 予兆の始まり
-          tempt = it; temptAt = now;
-          event(F.dash ? '……気になる。離れる方の道へ' : '……気になる。蝶から離れる方の道へ動けば、がまんできる', 2200);
+        it.near = !playing && !chase && gap <= 1 && it.x > CAT_X - 8 && it.x < CAT_X + 60;
+        if (!tempt && !playing && !chase && gap <= 1 && it.x - CAT_X <= 36 && it.x > CAT_X - 8) {
+          tempt = it; temptAt = now; temptGap = gap;
+          event('……気になる。離れる方の道へ', 2200);
         }
       }
-      function stumbles(when) { stumbleUntil = when + 500; event('茜「大丈夫かー？」'); }
       if (tempt) {
-        if (tempt.x < CAT_X - 20) { tempt.over = true; tempt = null; }   // 通り過ぎた（滅多にない）
+        if (tempt.x < CAT_X - 20) { tempt.over = true; tempt = null; }
         else if (now - temptAt >= 2000) startPlay(tempt, now);
       }
       if (playing) catSpeed = 0;
-      // 蝶の追いかけ: 背景も茜も止まり、猫だけ後ろへ走って、蝶が飛び去ったら戻ってくる
-      if (chase) {
+      if (chase) {   // 蝶の追いかけ: 背景も茜も止まり、猫だけ後ろへ走って、蝶が飛び去ったら戻ってくる
         catSpeed = 0;
         const it = chase.it;
         if (chase.phase === 'lead') {
@@ -905,7 +944,6 @@
         }
       }
 
-      // 位置。引かれている間は体だけ誘惑の方へ寄る（足元の道は変えない）
       laneY += (LANES[lane] - laneY) * 0.3;
       akY += (LANES[akLane] - akY) * 0.2;
       view.lean = tempt && now - temptAt >= 800 ? Math.sign(LANES[tempt.lane] - LANES[lane]) * 3 : 0;
@@ -913,42 +951,43 @@
       // 距離
       const tempting = !!tempt || !!playing || !!chase;
       let akSpeed;
-      if (!F.dash) akSpeed = catSpeed;   // 区間1: 茜が歩幅を合わせる（距離は固定）
-      else if (tempting || callAt) akSpeed = catSpeed;   // 誘惑中・呼びかけ中は距離を保つ
-      else akSpeed = waiting || now < waitUntil ? 0 : ahead ? 30 : now < lookUntil ? 0 : now < fastUntil ? 25 : V.ak;
-      if (F.dash && stumbling && !tempting && !waiting) akSpeed = Math.min(akSpeed, 12);   // つまずいたら歩幅をゆるめる
+      if (!F.dash) akSpeed = catSpeed;
+      else if (tempting || callAt) akSpeed = catSpeed;
+      else akSpeed = waiting || now < waitUntil ? 0 : ahead ? 30 : now < stopUntil ? 0 : now < fastUntil ? 25 : V.ak;
+      if (F.dash && stumbling && !tempting && !waiting) akSpeed = Math.min(akSpeed, 12);
       d += (akSpeed - catSpeed) * dt;
-      if (F.calls && plan.beside && T >= plan.beside && !waiting && !tempting && !ahead) d += (20 - d) * Math.min(1, dt * 1.5);   // 商店街の後半: 隣へ
+      if (beside && !waiting && !tempting && !ahead) d += (20 - d) * Math.min(1, dt * 1.5);
       if (now < waitUntil) d = Math.max(16, d);
       if (!F.dash) d = 56;
       scroll += catSpeed * dt;
       for (const it of items) it.x -= catSpeed * dt;
       while (items.length && items[0].x < -24) items.shift();
 
+      const calm = T > total / 1000 - 10 || beside;   // 終盤は歩幅を合わせ、距離の採点も休む
       if (F.dash && !tempting && !callAt) {
         if (!waiting && !ahead && now >= cooldownUntil && d >= 72) { waiting = true; waits++; cueUntil = now + 1200; event('茜「はよおいで。待ったるから」', 2500); }
         if (waiting && d <= 52) { waiting = false; cooldownUntil = now + 2000; event('茜「ほな、行こか」'); }
         if (!ahead && now >= cooldownUntil && d <= 12) { overtakes++; d = -16; ahead = true; smileUntil = now + 1200; event('茜「こら、先行ったらあかん！ ……元気やなぁ」', 2500); }
         if (ahead && d >= 32) { ahead = false; cooldownUntil = now + 2000; }
         const cool = now < cooldownUntil;
-        if (!waiting && !ahead && !cool && now >= waitUntil) { operable += dt; if (d >= 28 && d <= 52) inBand += dt; }
-        if (now > msgUntil && !waiting && !ahead && !(plan.beside && T >= plan.beside)) {
+        if (!waiting && !ahead && !cool && now >= waitUntil && !calm && d >= 28 && d <= 52) inBand += dt;
+        if (now > msgUntil && !waiting && !ahead && !calm) {
           const z = d > 60 ? 'far' : d < 22 ? 'near' : (d >= 28 && d <= 52) ? 'band' : zone;
           if (z !== zone) { zone = z; say(z === 'far' ? '少し離れてきた。「ダッシュ」' : z === 'near' ? '近づきすぎ。少しやすむ' : 'このくらいの距離で歩こう'); }
         }
       }
-      view.now = now; view.stumbling = stumbling; view.smile = now < smileUntil; view.cue = now < cueUntil || !!callAt; view.nod = now < nodUntil; view.glance = now < glanceUntil;
-      view.pull = !!tempt; view.play = !!playing; view.chase = !!chase; view.catX = catX; view.near = items.some(it => it.near && !it.hit && !it.over);
+      view.now = now; view.T = T; view.stumbling = stumbling; view.smile = now < smileUntil; view.cue = now < cueUntil || !!callAt; view.nod = now < nodUntil;
+      view.pull = !!tempt; view.play = !!playing; view.playStyle = playStyle; view.chase = !!chase; view.catX = catX; view.near = items.some(it => it.near && !it.hit && !it.over);
     }
     function grade() {
       if (carried) return 'だっこ';
-      if (seg < 3) return 'ふつう';   // 途中は行動の印だけ（一言は印で変わる）
+      if (seg < 3) return 'ふつう';
       const m = walkMemo;
-      const bandOk = m.operable > 0 && m.inBand / m.operable >= 0.6;
-      return m.detours === 0 && m.replies >= 2 && bandOk ? 'ぴったり' : 'ふつう';
+      return m.replies >= 2 && m.inBand + inBand >= 10 ? 'ぴったり' : 'ふつう';
     }
-    const flags = () => (carried ? {} : { よりみち: detours ? 'した' : 'なし', おくれ: (waits || waited) ? 'した' : 'なし', さきばしり: overtakes ? 'した' : 'なし' });
-    function finalize() { walkMemo.detours += detours; walkMemo.inBand += inBand; walkMemo.operable += operable; walkMemo.replies += replies; }
+    const KIND_NAME = { ちょう: '蝶', はち: '葉', くさのほ: '草の穂', おちば: '落ち葉', さかなや: '魚屋' };
+    const flags = () => (carried ? {} : { よりみち: detours ? 'した' : 'なし', よりみちさき: detours ? (KIND_NAME[lastDetour] || 'なし') : 'なし', おくれ: (waits || waited) ? 'した' : 'なし', さきばしり: overtakes ? 'した' : 'なし' });
+    function finalize() { walkMemo.inBand += inBand; walkMemo.replies += replies; }
 
     // ── 絵 ──
     const drawItem = it => {
@@ -957,22 +996,40 @@
         case 'みずたまり': rect(x, y - 2, 12, 2, '#5a8ac8'); rect(x + 2, y - 3, 8, 1, '#a0c8f0'); break;
         case 'こえだ': rect(x, y - 2, 10, 1, '#6a4020'); rect(x + 6, y - 4, 1, 2, '#6a4020'); rect(x + 3, y - 3, 1, 1, '#6a4020'); break;
         case 'あきかご': rect(x, y - 6, 9, 6, '#c8a060'); rect(x + 1, y - 5, 7, 4, '#a07838'); rect(x + 3, y - 8, 3, 2, '#c8a060'); break;
+        case 'だんボール': rect(x, y - 7, 11, 7, '#c8a878'); rect(x + 1, y - 6, 9, 1, '#a08050'); rect(x + 4, y - 4, 3, 2, '#a08050'); break;
         case 'ちょう': rect(x + ph, y - 12, 2, 2, C.yellow); rect(x + 3 - ph, y - 12, 2, 2, C.yellow); rect(x + 2, y - 11, 1, 2, C.black); break;
+        case 'はち': rect(x + 2, y - 5, 6, 5, '#a05030'); rect(x + 1, y - 8, 8, 3, '#3a7a30'); rect(x + 8 + ph, y - 6, 3, 1, '#5a9a40'); rect(x + 10 + ph, y - 5, 2, 1, '#5a9a40'); break;   // 鉢植えから垂れた葉
         case 'くさのほ': rect(x + 2, y - 8, 1, 8, '#8aa050'); rect(x + 1 + ph, y - 11, 3, 3, '#d8c890'); break;
         case 'おちば': rect(x, y - 4 + ph, 3, 2, '#d08030'); rect(x + 1, y - 5 + ph, 1, 1, '#d08030'); break;
-        case 'さかな': rect(x, y - 6, 6, 3, '#b0c0d0'); rect(x + 6, y - 7, 2, 5, '#b0c0d0'); rect(x + 1, y - 5, 1, 1, C.black); rect(x + 8, y - 11 - ph, 1, 3, C.gray); rect(x + 10, y - 13 + ph, 1, 3, C.gray); break;
+        case 'さかなや': rect(x, y - 10, 2, 10, C.gray); rect(x + 2, y - 10, 12, 4, '#3868a8'); rect(x + 4, y - 9, 8, 1, C.white); rect(x + 3 + ph, y - 14, 1, 2, '#c8c8d0'); rect(x + 7 - ph, y - 15, 1, 2, '#c8c8d0'); break;   // 店先の台と、におい
       }
     };
     function draw() {
+      const dusk = seg === 3 ? Math.min(1, (view.T || 0) / (total / 1000)) : 0;
       drawSky(false);
+      if (dusk) rect(0, 0, 256, 120, `rgba(20,16,48,${0.35 * dusk})`);   // 商店街は少しずつ暮れる
       const park = seg === 2;
       const shades = park ? ['#3e7a36', '#4a8a40', '#56984a'] : ['#7a7a82', '#8a8a90', '#9a9aa0'];
       rect(0, 118, 256, 12, shades[0]); rect(0, 130, 256, 11, shades[1]); rect(0, 141, 256, 19, shades[2]);
       for (let x = -(scroll % 24); x < 256; x += 24) { rect(x, 129, 6, 1, park ? '#6aa860' : '#b0b0b8'); rect(x + 12, 140, 6, 1, park ? '#6aa860' : '#b0b0b8'); }
-      for (let x = -((scroll * 0.5) % 48); x < 256; x += 48) {
+      // 遠景と、生活感（判定に関係しない。世界の座標に置く）
+      const far = scroll * 0.5;
+      for (let x = -(far % 48); x < 256; x += 48) {
         if (seg === 1) { rect(x, 100, 4, 18, '#a08060'); rect(x, 100, 48, 2, '#a08060'); }
         else if (seg === 2) { rect(x + 10, 92, 6, 26, '#6a4020'); rect(x, 64, 26, 32, '#3a7a30'); }
-        else { rect(x, 50, 40, 68, '#d8c8b0'); rect(x + 2, 64, 36, 8, C.sofa); rect(x + 14, 90, 12, 28, '#504030'); }
+        else {
+          const lit = dusk > 0.6 && Math.floor((x + far) / 48) % 2 === 0;
+          rect(x, 50, 40, 68, '#d8c8b0'); rect(x + 2, 64, 36, 8, C.sofa); rect(x + 14, 90, 12, 28, lit ? C.yellow : '#504030');
+          if (dusk > 0.6) rect(x + 4, 76, 8, 6, lit ? '#f8f0a0' : '#504030');
+        }
+      }
+      const wx = X => Math.round(X - far);   // 遠景の世界座標 → 画面
+      if (seg === 1) {
+        if (far < 420) { const x = wx(300); rect(x, 92, 10, 12, C.white); rect(x + 12, 92, 10, 12, '#a8d8f8'); }   // 物干しのタオル（途中で取り込まれる）
+        { const x = wx(760); rect(x, 108, 14, 8, '#8a6a40'); rect(x + 2, 104, 4, 4, '#8a6a40'); rect(x + 4, 106, 1, 1, C.black); }   // 門の内側の犬
+      } else if (seg === 2) {
+        { const x = wx(520); rect(x, 100, 8, 18, C.gray); rect(x + 2, 96, 4, 4, C.gray); rect(x + 3, 118, 2, 1, '#78b0e0'); }   // 水飲み場
+        { const x = wx(1000); rect(x, 104, 6, 12, '#f0c090'); rect(x + 1, 100, 4, 4, '#604020'); rect(x + 7, 110, 4, 4, C.sofa); }   // 遠くの子どもとボール
       }
       const bob = Math.floor(scroll / 8) % 2, now = view.now || Date.now();
       const cx0 = Math.round(view.catX || CAT_X);
@@ -983,13 +1040,13 @@
         if (carried) drawSprite('cat_sit', ax + 6, ay - 12 - bob);
         if (view.cue) { rect(ax - 1, ay - 42, 2, 5, C.white); rect(ax - 1, ay - 36, 2, 2, C.white); }
         if (view.smile) drawHeart(ax + 10, ay - 40);
-        if (view.glance) { rect(ax - 3, ay - 40, 1, 1, C.white); rect(ax - 1, ay - 40, 1, 1, C.white); rect(ax + 1, ay - 40, 1, 1, C.white); }
       } });
       if (!carried) layers.push({ y: laneY + 0.1, f: () => {
         const cy = Math.round(laneY) + (view.lean || 0);
-        const chaseBob = view.chase ? Math.floor(now / 90) % 2 : bob;   // 追いかけ中は小走り
+        const chaseBob = view.chase ? Math.floor(now / 90) % 2 : bob;
         if (!(view.stumbling && Math.floor(now / 80) % 2)) drawSprite('cat_sit', cx0, cy - (view.play ? 0 : chaseBob));
-        if (view.play || view.chase) { rect(cx0 - 1, cy - 24, 2, 4, C.yellow); rect(cx0 - 1, cy - 19, 2, 1, C.yellow); }   // 「！」= 夢中
+        if (view.play && view.playStyle === 'sniff') { rect(cx0 + 10, cy - 22, 1, 2, C.white); rect(cx0 + 12, cy - 24, 1, 2, C.white); }   // 鼻を上げている
+        else if (view.play || view.chase) { rect(cx0 - 1, cy - 24, 2, 4, C.yellow); rect(cx0 - 1, cy - 19, 2, 1, C.yellow); }   // 「！」= 夢中
         else if (view.pull || view.near) { rect(cx0 - 2, cy - 24, 4, 1, C.white); rect(cx0 + 1, cy - 23, 1, 2, C.white); rect(cx0, cy - 21, 1, 1, C.white); rect(cx0, cy - 19, 1, 1, C.white); }   // 「？」= 気になる
       } });
       layers.sort((a, b) => a.y - b.y).forEach(l => l.f());
