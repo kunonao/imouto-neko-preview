@@ -36,7 +36,7 @@
   const ui = {};
   ['title', 'play', 'stage', 'stage-wrap', 'objective', 'dialog', 'd-name', 'd-text', 'd-next', 'commands', 'minigame', 'panel', 'btn-menu',
     'menu', 'menu-panel', 'chapter-end', 'ce-title', 'ce-text', 'btn-next', 'toast', 'btn-new', 'btn-continue', 'btn-size', 'btn-costume',
-    'card', 'card-small', 'card-label', 'card-big']
+    'card', 'card-small', 'card-label', 'card-big', 'disc', 'btn-found']
     .forEach(id => { ui[id] = $(id); });
 
   // ---------- 保存（失敗しても遊べる） ----------
@@ -87,6 +87,21 @@
     toast.t = setTimeout(() => ui.toast.classList.add('hidden'), 2800);
   }
   function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+  // はっけんは画面の上（場面の左上の札）に出す。上の帯の「はっけん n/m」も光らせる
+  function showDisc(list) {
+    ui.disc.replaceChildren(...list.map(d => el('div', d.special ? 'special' : '', (d.special ? '★ とくべつなはっけん　' : 'はっけん　') + d.name)));
+    ui.disc.classList.remove('hidden');
+    clearTimeout(showDisc.t);
+    showDisc.t = setTimeout(() => ui.disc.classList.add('hidden'), 3600);
+    ui['btn-found'].classList.remove('flash');
+    void ui['btn-found'].offsetWidth;   // 連続でも毎回光るように、アニメを仕切り直す
+    ui['btn-found'].classList.add('flash');
+  }
+  function updateFound() {
+    if (!E.chapter) return;
+    const c = E.counts();
+    ui['btn-found'].textContent = `はっけん ${c.found}/${c.total}` + (c.specialTotal ? ` ★${c.special}/${c.specialTotal}` : '');
+  }
   // 画面全体のカード（章と目標の提示）。約2秒で自動的に閉じる。タップで早送り
   function showCard(small, label, big, done) {
     const card = ui.card;
@@ -129,8 +144,10 @@
   function enterPlay() {
     showScreen('play');
     ui.minigame.classList.add('hidden');
+    ui.disc.classList.add('hidden');
     ui.commands.replaceChildren();
     setDialog('', '', 'nare', false);
+    updateFound();
     fitCanvas();
     render();
   }
@@ -175,7 +192,7 @@
     }
   }
   function onActionEnd(ev) {
-    if (ev.fresh.length) toast(ev.fresh.map(d => (d.special ? '★ とくべつなはっけん: ' : 'はっけん: ') + d.name).join('\n'));
+    if (ev.fresh.length) { showDisc(ev.fresh); updateFound(); }
     if (ev.cleared && params.get('hold') === '1') { mode = 'commands'; return; }   // 確認用: クリア画面に進まず最後の場面で止まる
     if (ev.cleared) {
       const next = E.chapterIndex + 1;
@@ -337,7 +354,7 @@
     },
     town: {
       茜: { たち: [128, 140], ベンチ: [180, 131], だっこ: [128, 140] },   // ベンチ = お尻が座面（y 124〜128）に来る高さ
-      葵: { ゆか: [92, 140] },
+      葵: { ゆか: [92, 140], ベンチ: [163, 128], ベンチよこ: [148, 140] },   // ベンチ = 座面の上、茜の隣。ベンチよこ = ベンチの足元
       葵人間: {},
       defaults: [],
       props: {},
@@ -550,26 +567,17 @@
     if (v.pose.茜 === 'なでる' && gp) drawHeart(gp[0] + 10, gp[1] - 22);
     if (fadeAlpha > 0) rect(0, 0, 256, 160, `rgba(0,0,0,${fadeAlpha})`);
   }
-  // 絵の大きさを決める。縦長: 幅いっぱい（枠の端をそろえる）。横長: 右の列（会話とコマンド）を置いた残りの幅
+  // 遊ぶ画面は決め打ちの大きさ（縦長 390×724、横長 960×448。内訳は style.css の先頭）を、端末の縦横の短い方に合わせて同じ倍率で縮める
+  const DESIGN = { portrait: [390, 724], landscape: [960, 448] };
   function fitCanvas() {
-    const app = document.getElementById('app');
-    const landscape = window.matchMedia('(orientation: landscape) and (min-width: 700px)').matches;
-    let cssW;
-    if (landscape) {
-      const appW = app.clientWidth - 24;                       // #app の左右の余白
-      const sideW = Math.min(420, Math.max(300, appW * 0.4));
-      cssW = Math.min(768, appW - sideW - 16 - 4);
-      const maxH = window.innerHeight - 110;                   // 上のバーと余白
-      if (cssW * 160 / 256 > maxH) cssW = Math.floor(maxH * 256 / 160);
-      cssW = Math.max(256, cssW);
-    } else {
-      cssW = Math.max(256, ui['stage-wrap'].clientWidth - 4);
-    }
-    const cssH = Math.round(cssW * 160 / 256);
-    ui.play.style.setProperty('--stage-w', cssW + 'px');
-    ui.play.style.setProperty('--stage-h', cssH + 'px');
-    cv.style.width = cssW + 'px';
-    cv.style.height = cssH + 'px';
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const landscape = vw > vh && vw >= 600;
+    const [dw, dh] = DESIGN[landscape ? 'landscape' : 'portrait'];
+    const pad = 24;   // #app の左右の余白
+    const s = Math.min((vw - pad) / dw, (vh - 20) / dh, 1.6);
+    ui.play.classList.toggle('portrait', !landscape);
+    ui.play.classList.toggle('landscape', landscape);
+    ui.play.style.setProperty('--s', String(Math.max(0.5, s)));
   }
 
   // ---------- ミニゲーム ----------
@@ -614,19 +622,19 @@
     let stumbles = 0, detours = 0, waits = 0, overtakes = 0, stumbleUntil = 0, chaseUntil = 0, cueUntil = 0, smileUntil = 0, nextItem = 0, nextTurn = 0, lastTemptEnd = 0;
     let wasChasing = false, wasSameLane = true;
     const items = [];
-    const status = el('div', 'prog', carried ? 'お姉ちゃんの腕の中。ゆられている' : '');
+    // 枠に収める並び: 題 ／ 状況＋スキップ ／ 進み具合 ／ ダッシュ … ▲▼（縦に二つ）
+    const status = el('div', 'prog', carried ? 'お姉ちゃんの腕の中。ゆられている' : seg === 1 ? '足元の物はよけて、蝶に気を取られない' : '');
+    const skipBtn = button('スキップ', () => finish(true), 'small');
+    const statusRow = el('div', 'status'); statusRow.append(status, skipBtn);
     const bar = el('div', 'bar'); const fill = document.createElement('div'); fill.style.width = '0%'; bar.appendChild(fill);
     const up = el('button', 'big', '▲ おく'), down = el('button', 'big', '▼ てまえ');
-    up.style.minWidth = down.style.minWidth = '120px'; up.style.minHeight = down.style.minHeight = '60px';
     const col = el('div', 'col'); col.append(up, down);
-    const dash = el('button', 'big', 'ダッシュ'); dash.style.minWidth = '120px'; dash.style.minHeight = '60px';
-    const skipBtn = button('スキップ', () => finish(true)); skipBtn.style.minHeight = '36px'; skipBtn.style.fontSize = '13px'; skipBtn.style.opacity = '.7';
-    const left = el('div', 'col'); left.append(dash, skipBtn);
-    const bottom = el('div', 'row'); bottom.style.width = '100%'; bottom.style.justifyContent = 'space-between'; bottom.style.alignItems = 'flex-end';
-    bottom.append(carried ? skipBtn : left, carried ? el('div') : col);
+    const dash = el('button', 'big', 'ダッシュ');
+    const bottom = el('div', 'row wide');
+    if (!carried) bottom.append(dash, col);
     hold(dash, () => { dashing = true; }, () => { dashing = false; });
-    const title = carried ? '抱っこで進む。何もしなくていい' : seg === 1 ? 'お姉ちゃんについていこう。▲▼で道を変える。足元の物はよけて、蝶に気を取られない' : seg === 2 ? '公園の道。落ち葉や草の穂が気になる……' : '商店街。もうすぐ川原';
-    ui.minigame.replaceChildren(el('div', 'title', title), status, bar, bottom);
+    const title = carried ? '抱っこで進む。何もしなくていい' : seg === 1 ? 'お姉ちゃんについていこう。▲▼で道を変える' : seg === 2 ? '公園の道。落ち葉や草の穂が気になる……' : '商店街。もうすぐ川原';
+    ui.minigame.replaceChildren(el('div', 'title', title), statusRow, bar, bottom);
     const move = d => {
       if (done || carried || Date.now() < chaseUntil) return;
       const pulling = items.find(it => it.pullDir);
@@ -783,8 +791,8 @@
     };
     rows.forEach(r => { const line = el('div', 'kbrow'); for (const ch of r) line.appendChild(button(ch, () => press(ch), 'key')); kb.appendChild(line); });
     const ctl = el('div', 'row');
-    if (mode === 'つめ') ctl.appendChild(button('けす', erase));
-    ctl.appendChild(button('やめる', () => finish('しっぱい')));
+    if (mode === 'つめ') ctl.appendChild(button('けす', erase, 'small'));
+    ctl.appendChild(button('やめる', () => finish('しっぱい'), 'small'));
     ui.minigame.replaceChildren(el('div', 'title', mode === 'にくきゅう' ? 'キーボードを、肉球で押す' : '爪で一本ずつ。a → o → i の順に押す'), hint, kb, ctl);
     update();
     game = { key: e => { const k = e.key.toLowerCase(); if (/^[a-z]$/.test(k)) press(k); else if (e.key === 'Backspace') erase(); } };
@@ -827,10 +835,9 @@
     E.visual.pudding = angle;
     const dial = document.createElement('canvas'); dial.width = 96; dial.height = 96; dial.className = 'dial';
     const g = dial.getContext('2d');
-    const L = el('button', 'big', '◀ ひだり'), R = el('button', 'big', 'みぎ ▶');
-    L.style.minWidth = R.style.minWidth = '120px';
-    const row = el('div', 'row'); row.append(L, R);
-    ui.minigame.replaceChildren(el('div', 'title', 'プリンをまわして、「あおい」をお姉ちゃんに向けよう（長押しで回る。PCは ← →）'), dial, row);
+    const L = el('button', 'big arrow', '◀'), R = el('button', 'big arrow', '▶');
+    const row = el('div', 'row'); row.append(L, dial, R);   // 枠に収めるため、皿の両わきにボタン
+    ui.minigame.replaceChildren(el('div', 'title', 'プリンをまわして、「あおい」をお姉ちゃんに向けよう（◀ ▶ の長押しで回る。PCは ← →）'), row);
     const drawDial = () => {
       g.clearRect(0, 0, 96, 96);
       g.fillStyle = C.pink; g.font = 'bold 11px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'top'; g.fillText('↑ お姉ちゃん', 48, 0);
@@ -891,14 +898,16 @@
     if (!E.restore(snap)) { toast('セーブデータを読めませんでした'); return; }
     enterPlay();
     mode = 'commands';
-    setDialog('', 'つづきから。', 'nare', false);
+    setDialog('', 'つづきから', 'nare', false);
     ui.objective.textContent = E.visual.objective || '';
+    updateFound();
     renderCommands();
     render();
   };
   ui['btn-size'].onclick = cycleSize;
   ui['btn-costume'].onclick = cycleCostume;
   ui['btn-menu'].onclick = openMenu;   // メニューは常に出しておく
+  ui['btn-found'].onclick = () => { showFound(); ui.menu.classList.remove('hidden'); };
 
   // ---------- 起動 ----------
   loadSettings();

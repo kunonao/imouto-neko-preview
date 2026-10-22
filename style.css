@@ -1,3 +1,9 @@
+/* 妹はネコ 画面の見た目
+   遊ぶ画面（#play）は大きさを決め打ちし、端末の縦横の短い方に合わせて全体を同じ倍率（--s）で縮める。
+   文字も枠も同じ倍率で縮むので、どの端末でもはみ出さない。
+     縦長の設計: 390 × 724（上の帯 40 ／ 場面 244 ／ 会話 196 ／ コマンド枠 220 ／ すきま 8×3）
+     横長の設計: 960 × 448（上の帯 40 ／ 場面 640×400 ＋ 右に会話 172 ＋ コマンド枠 220）
+   倍率は main.js の fitCanvas() が決めて #play の --s に入れる。 */
 :root {
   --bg: #101018;
   --fg: #f0f0f0;
@@ -8,7 +14,7 @@
   --text: 17px;
 }
 body.size-s { --text: 15px; }
-body.size-l { --text: 20px; }
+body.size-l { --text: 19px; }
 
 * { box-sizing: border-box; }
 html, body {
@@ -17,19 +23,14 @@ html, body {
   color: var(--fg);
   font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
   -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
 }
-#app {
-  max-width: 560px;
-  margin: 0 auto;
-  padding: 8px 12px calc(12px + env(safe-area-inset-bottom));
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
+#app { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 8px 12px calc(12px + env(safe-area-inset-bottom)); }
 .hidden { display: none !important; }
-.screen { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.screen { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 560px; }
 
-#title { align-items: center; justify-content: center; text-align: center; }
+/* ── タイトル・章の終わり（決め打ちしない簡単な画面） ── */
+#title, #chapter-end { align-items: center; justify-content: center; text-align: center; flex: 1; }
 h1 { font-size: 40px; letter-spacing: .1em; margin: 0; }
 .sub { opacity: .8; margin: 0 0 16px; }
 .note { font-size: 12px; opacity: .7; margin-top: 24px; }
@@ -53,72 +54,131 @@ button {
 button:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 #000; }
 button.big { min-width: 240px; font-size: 20px; }
 
-/* 画面構成（ポートピア風に枠を固定）: 上に目標とメニュー、絵、会話、コマンド枠。コマンド枠は常に同じ大きさを確保する */
-#topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; }
-#objective { font-size: 14px; opacity: .9; min-height: 1.4em; flex: 1; }
-#objective:not(:empty)::before { content: "もくひょう: "; opacity: .7; }
-#btn-menu { min-height: 36px; padding: 4px 14px; font-size: 14px; }
+/* ── 遊ぶ画面（決め打ち + 倍率 --s） ── */
+#play {
+  --s: 1;
+  --gap: calc(8px * var(--s));
+  --bw: calc(2px * var(--s));           /* 枠の太さ */
+  max-width: none;
+  display: grid;
+  gap: var(--gap);
+  font-size: calc(var(--text) * var(--s));
+  align-content: start;
+}
+#play.portrait {
+  width: calc(390px * var(--s));
+  grid-template-columns: 1fr;
+  grid-template-rows: calc(40px * var(--s)) calc(244px * var(--s)) calc(196px * var(--s)) calc(220px * var(--s));
+}
+#play.portrait #side { display: contents; }   /* 縦長では会話とコマンド枠をそれぞれの行に置く */
+#play.landscape {
+  width: calc(960px * var(--s));
+  grid-template-columns: calc(640px * var(--s)) calc(304px * var(--s));
+  grid-template-rows: calc(40px * var(--s)) calc(400px * var(--s));
+  column-gap: calc(16px * var(--s));
+}
+#play.landscape #topbar { grid-column: 1 / -1; }
 
-#stage-wrap { background: #000; border: 2px solid var(--border); line-height: 0; }
-#stage { image-rendering: pixelated; image-rendering: crisp-edges; display: block; width: 100%; height: auto; }
+#play button {
+  font-size: calc(16px * var(--s));
+  padding: calc(6px * var(--s)) calc(4px * var(--s));
+  min-height: calc(52px * var(--s));
+  border-width: var(--bw);
+  border-radius: calc(4px * var(--s));
+  box-shadow: calc(2px * var(--s)) calc(2px * var(--s)) 0 #000;
+}
+#play.landscape #commands button { font-size: calc(15px * var(--s)); padding-left: calc(2px * var(--s)); padding-right: calc(2px * var(--s)); }
 
-#side { display: flex; flex-direction: column; gap: 8px; }
+#topbar { display: flex; align-items: center; justify-content: space-between; gap: var(--gap); }
+#objective { font-size: calc(14px * var(--s)); opacity: .9; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#objective:not(:empty)::before { content: "◎ "; opacity: .7; }
+#play #btn-menu, #play #btn-found { min-height: calc(34px * var(--s)); padding: calc(4px * var(--s)) calc(10px * var(--s)); font-size: calc(13px * var(--s)); white-space: nowrap; }
+#play #btn-found { border-color: var(--akane); color: #ffd0e0; font-size: calc(12px * var(--s)); padding-left: calc(6px * var(--s)); padding-right: calc(6px * var(--s)); }
+#play #btn-found.flash { animation: foundflash .5s 3; }
+@keyframes foundflash { 50% { background: var(--akane); color: #000; } }
+
+#stage-wrap { position: relative; background: #000; border: var(--bw) solid var(--border); line-height: 0; width: 100%; height: 100%; }
+#stage { image-rendering: pixelated; image-rendering: crisp-edges; display: block; width: 100%; height: 100%; }
+/* はっけんの札: 場面の左上に出る（人物は下の方にいるので隠さない） */
+#disc {
+  position: absolute; left: calc(8px * var(--s)); top: calc(8px * var(--s)); max-width: calc(100% - 16px * var(--s));
+  background: #000; border: var(--bw) solid var(--akane); box-shadow: calc(2px * var(--s)) calc(2px * var(--s)) 0 #000;
+  padding: calc(4px * var(--s)) calc(8px * var(--s));
+  font-size: calc(14px * var(--s)); line-height: 1.4; color: var(--fg);
+  animation: discin .3s ease-out;
+}
+#disc .special { color: #ffd080; }
+@keyframes discin { from { transform: translateY(calc(-8px * var(--s))); opacity: 0; } to { transform: none; opacity: 1; } }
+
+#side { display: flex; flex-direction: column; gap: var(--gap); min-height: 0; }
 .dialog {
   position: relative;
-  border: 2px solid var(--border);
+  border: var(--bw) solid var(--border);
   background: var(--panel);
-  padding: 10px 12px 18px;
-  height: calc(var(--text) * 1.5 * 3 + 1.2em + 28px);   /* 名前 + 3行分を固定 */
+  padding: calc(8px * var(--s)) calc(12px * var(--s)) calc(16px * var(--s));
   overflow: hidden;
-  font-size: var(--text);
   line-height: 1.5;
-  box-shadow: inset 0 0 0 2px #000;
+  box-shadow: inset 0 0 0 var(--bw) #000;
   cursor: pointer;
+  flex: 1;
+  min-height: 0;
 }
-#panel {
-  min-height: calc(3 * 52px + 2 * 8px + 20px);
-  display: flex; flex-direction: column;
-  border: 2px solid var(--border);   /* コマンドの枠は常に見える */
-  background: #000;
-  padding: 8px;
-  box-shadow: inset 0 0 0 2px #000;
-}
-#d-name { font-weight: bold; font-size: .9em; margin-bottom: 2px; color: #ffd080; min-height: 1em; }
+#d-name { font-weight: bold; font-size: .9em; margin-bottom: calc(2px * var(--s)); color: #ffd080; min-height: 1em; }
 .dialog.akane #d-name, .dialog.akokoro #d-name { color: var(--akane); }
 .dialog.aoi #d-name, .dialog.kokoro #d-name { color: var(--aoi); }
 .dialog.kokoro #d-text { color: #c8e0ff; }
 .dialog.akokoro #d-text { color: #ffd0e0; }
 .dialog.nare #d-text { opacity: .85; }
-#d-next { position: absolute; right: 10px; bottom: 4px; font-size: 12px; animation: blink 1s infinite; }
+#d-next { position: absolute; right: calc(10px * var(--s)); bottom: calc(4px * var(--s)); font-size: calc(12px * var(--s)); animation: blink 1s infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
-#commands { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 52px; gap: 8px; }
-#commands button { padding: 6px 4px; min-height: 52px; }
-#commands button.wide { grid-column: 1 / -1; }
+#panel {
+  flex: 0 0 calc(220px * var(--s));
+  height: calc(220px * var(--s));
+  display: flex; flex-direction: column;
+  border: var(--bw) solid var(--border);   /* コマンドの枠は常に見える */
+  background: #000;
+  padding: var(--gap);
+  box-shadow: inset 0 0 0 var(--bw) #000;
+  overflow: hidden;
+}
+#commands { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: calc(52px * var(--s)); gap: var(--gap); }
 #commands.busy { pointer-events: none; opacity: .4; }   /* 会話中はコマンドを薄く（枠はそのまま） */
 
+/* ミニゲームはコマンド枠（220）の中に収める。内側は約 188 × 358（縦長）／ 188 × 272（横長） */
 #minigame {
   background: var(--panel);
-  padding: 8px;
+  padding: calc(6px * var(--s));
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: calc(6px * var(--s));
   align-items: center;
   flex: 1;
+  min-height: 0;
+  width: 100%;
 }
-#minigame .title { font-size: 14px; text-align: center; }
-#minigame .prog { font-size: 22px; font-weight: bold; }
-#minigame .bar { width: 100%; height: 12px; border: 2px solid var(--border); }
+#minigame .title { font-size: calc(13px * var(--s)); text-align: center; line-height: 1.3; }
+#minigame .prog { font-size: calc(15px * var(--s)); font-weight: bold; min-height: 1.3em; line-height: 1.3; text-align: center; }
+#minigame .status { display: flex; align-items: center; gap: calc(8px * var(--s)); width: 100%; }
+#minigame .status .prog { flex: 1; font-size: calc(14px * var(--s)); }
+#minigame .bar { width: 100%; height: calc(10px * var(--s)); border: var(--bw) solid var(--border); flex: none; }
 #minigame .bar > div { height: 100%; background: var(--akane); }
-#minigame .row { display: flex; gap: 12px; }
-#minigame .dial { width: 192px; height: 192px; }
-#minigame .kb { display: flex; flex-direction: column; gap: 6px; align-items: center; }
-#minigame .kbrow { display: flex; gap: 4px; }
-#minigame button.key { min-width: 30px; min-height: 40px; padding: 4px 0; font-size: 15px; }
+#minigame .row { display: flex; gap: calc(12px * var(--s)); align-items: center; }
+#minigame .row.wide { width: 100%; justify-content: space-between; }
+#minigame .col { gap: calc(6px * var(--s)); }
+#minigame .dial { width: calc(100px * var(--s)); height: calc(100px * var(--s)); }
+#minigame .kb { display: flex; flex-direction: column; gap: calc(3px * var(--s)); align-items: center; }
+#minigame .kbrow { display: flex; gap: calc(3px * var(--s)); }
+#minigame button.key { min-width: calc(25px * var(--s)); min-height: calc(28px * var(--s)); padding: 0; font-size: calc(13px * var(--s)); }
+#minigame button.big { min-width: calc(104px * var(--s)); min-height: calc(44px * var(--s)); font-size: calc(16px * var(--s)); }
+#minigame button.arrow { min-width: calc(64px * var(--s)); min-height: calc(64px * var(--s)); font-size: calc(22px * var(--s)); }
+#minigame button.small { min-height: calc(28px * var(--s)); font-size: calc(12px * var(--s)); opacity: .7; padding: 0 calc(8px * var(--s)); }
+
 #ce-text { white-space: pre-line; }
 
+/* ── 重ねる画面 ── */
 .overlay {
-  position: fixed; inset: 0;
+  position: fixed; inset: 0; z-index: 10;
   background: rgba(0, 0, 0, .7);
   display: flex; align-items: center; justify-content: center;
   padding: 16px;
@@ -131,11 +191,13 @@ button.big { min-width: 240px; font-size: 20px; }
   max-height: 90vh;
   overflow: auto;
   display: flex; flex-direction: column; gap: 8px;
+  font-size: var(--text);
 }
 .panel h2 { margin: 0 0 4px; font-size: 20px; }
-.panel ul { margin: 0; padding-left: 1.4em; font-size: var(--text); }
+.panel ul { margin: 0; padding-left: 1.4em; }
 .panel li.todo { opacity: .5; }
 .panel li.special { color: #ffd080; }
+.panel button { min-height: 44px; font-size: var(--text); }
 
 #card {
   position: fixed; inset: 0; z-index: 20;
@@ -154,24 +216,5 @@ button.big { min-width: 240px; font-size: 20px; }
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
   background: #000; border: 2px solid var(--akane);
   padding: 8px 12px; font-size: 14px; white-space: pre-line; max-width: 90vw;
-  z-index: 10;
-}
-
-/* 横長: 絵を左、会話とコマンドを右。右の列の高さは絵と同じにして、上下の端をそろえる */
-@media (orientation: landscape) and (min-width: 700px) {
-  #app { max-width: 1200px; }
-  #play {
-    display: grid;
-    grid-template-columns: var(--stage-w, 512px) minmax(300px, 420px);
-    grid-template-rows: auto var(--stage-h, 320px);
-    gap: 8px 16px;
-    align-content: start;
-    justify-content: center;
-  }
-  #topbar { grid-column: 1 / -1; }
-  #stage-wrap { width: var(--stage-w, 512px); height: var(--stage-h, 320px); box-sizing: content-box; }
-  #side { height: calc(var(--stage-h, 320px) + 4px); }
-  .dialog { flex: 1; height: auto; }                      /* 会話は残りの高さをぜんぶ使う（ポートピア風） */
-  #panel { flex: 0 0 auto; }                               /* コマンド枠は下に固定の大きさ */
-  #commands { grid-auto-rows: 52px; }
+  z-index: 30;
 }
