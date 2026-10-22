@@ -66,16 +66,19 @@
     }
 
     // ミニゲームの分岐の中で宣言されたはっけんは、その結果が出たときに付ける
-    enter(block) { this.pending.push(...block.discoveries.filter(d => !d.branch)); return block.items.slice(); }
+    enter(block) { this.pending.push(...block.discoveries.filter(d => !d.branch && !d.inline)); return block.items.slice(); }
 
     getRun() { return { runFound: this.runFound, runSpecial: this.runSpecial, runCleared: this.runCleared, hints: this.hints, ending: this.ending }; }
     setRun(r) { this.runFound = r.runFound || {}; this.runSpecial = r.runSpecial || {}; this.runCleared = r.runCleared || {}; this.hints = Number(r.hints) || 0; this.ending = r.ending || ''; }
 
     // エンディング判定用の状態（とくべつ / ネコ / トップ.◯◯ / かず.◯◯ / ヒント / すなお / かしこい / 完走 / ふつう）
     endingState() {
-      const totals = {}, counts = {};
+      const totals = {}, counts = {}, seen = new Set();
       this.chapters.forEach((ch, ci) => ch.blocks.forEach(b => b.discoveries.forEach(d => {
-        const hit = !!this.runFound[`c${ci + 1}.${d.id}`];
+        const key = `c${ci + 1}.${d.id}`;
+        if (seen.has(key)) return;   // 同じ id が複数の場所に書かれていても1つ
+        seen.add(key);
+        const hit = !!this.runFound[key];
         (d.tags || []).forEach(t => { totals[t] = (totals[t] || 0) + 1; if (hit) counts[t] = (counts[t] || 0) + 1; });
       })));
       const s = { とくべつ: String(Object.keys(this.runSpecial).length), ヒント: String(this.hints), ふつう: 'あり' };
@@ -150,6 +153,7 @@
       while (this.queue.length) {
         const it = this.queue.shift();
         if (it.cond && !matches(it.cond, this.state)) continue;   // ?条件 の行。合わなければ飛ばす
+        if (it.type === 'disc') { this.pending.push(it); continue; }   // 条件付きのはっけん
         if (it.type === 'say') return it;
         if (it.type === 'minigame') { this.waitingGame = it; return { type: 'minigame', name: it.name, params: it.params }; }
         const ev = this.apply(it);
@@ -208,7 +212,8 @@
     // この章のはっけん数
     counts() {
       const pre = `c${this.chapterIndex + 1}.`;
-      const all = this.chapter.blocks.flatMap(b => b.discoveries);
+      const ids = new Set();
+      const all = this.chapter.blocks.flatMap(b => b.discoveries).filter(d => !ids.has(d.id) && ids.add(d.id));
       return {
         found: Object.keys(this.found).filter(k => k.startsWith(pre)).length,
         total: all.filter(d => !d.special).length,

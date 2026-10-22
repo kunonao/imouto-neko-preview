@@ -53,22 +53,35 @@ button {
 button:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 #000; }
 button.big { min-width: 240px; font-size: 20px; }
 
-#objective { font-size: 14px; opacity: .9; min-height: 1.4em; }
+/* 画面構成（ポートピア風に枠を固定）: 上に目標とメニュー、絵、会話、コマンド枠。コマンド枠は常に同じ大きさを確保する */
+#topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; }
+#objective { font-size: 14px; opacity: .9; min-height: 1.4em; flex: 1; }
 #objective:not(:empty)::before { content: "もくひょう: "; opacity: .7; }
+#btn-menu { min-height: 36px; padding: 4px 14px; font-size: 14px; }
 
-#stage-wrap { display: flex; justify-content: center; background: #000; border: 2px solid var(--border); }
-#stage { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+#stage-wrap { background: #000; border: 2px solid var(--border); line-height: 0; }
+#stage { image-rendering: pixelated; image-rendering: crisp-edges; display: block; width: 100%; height: auto; }
 
+#side { display: flex; flex-direction: column; gap: 8px; }
 .dialog {
   position: relative;
   border: 2px solid var(--border);
   background: var(--panel);
   padding: 10px 12px 18px;
-  min-height: 5.4em;
+  height: calc(var(--text) * 1.5 * 3 + 1.2em + 28px);   /* 名前 + 3行分を固定 */
+  overflow: hidden;
   font-size: var(--text);
   line-height: 1.5;
   box-shadow: inset 0 0 0 2px #000;
   cursor: pointer;
+}
+#panel {
+  min-height: calc(3 * 52px + 2 * 8px + 20px);
+  display: flex; flex-direction: column;
+  border: 2px solid var(--border);   /* コマンドの枠は常に見える */
+  background: #000;
+  padding: 8px;
+  box-shadow: inset 0 0 0 2px #000;
 }
 #d-name { font-weight: bold; font-size: .9em; margin-bottom: 2px; color: #ffd080; min-height: 1em; }
 .dialog.akane #d-name, .dialog.akokoro #d-name { color: var(--akane); }
@@ -79,18 +92,19 @@ button.big { min-width: 240px; font-size: 20px; }
 #d-next { position: absolute; right: 10px; bottom: 4px; font-size: 12px; animation: blink 1s infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
-#commands { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-#commands button { padding: 10px 6px; }
+#commands { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 52px; gap: 8px; }
+#commands button { padding: 6px 4px; min-height: 52px; }
 #commands button.wide { grid-column: 1 / -1; }
+#commands.busy { pointer-events: none; opacity: .4; }   /* 会話中はコマンドを薄く（枠はそのまま） */
 
 #minigame {
-  border: 2px solid var(--border);
   background: var(--panel);
-  padding: 10px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   align-items: center;
+  flex: 1;
 }
 #minigame .title { font-size: 14px; text-align: center; }
 #minigame .prog { font-size: 22px; font-weight: bold; }
@@ -143,17 +157,21 @@ button.big { min-width: 240px; font-size: 20px; }
   z-index: 10;
 }
 
-@media (min-aspect-ratio: 4/3) and (min-width: 820px) {
-  #app { max-width: 1100px; }
+/* 横長: 絵を左、会話とコマンドを右。右の列の高さは絵と同じにして、上下の端をそろえる */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app { max-width: 1200px; }
   #play {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-areas: "obj obj" "stage dialog" "stage cmd";
+    grid-template-columns: var(--stage-w, 512px) minmax(300px, 420px);
+    grid-template-rows: auto var(--stage-h, 320px);
     gap: 8px 16px;
     align-content: start;
+    justify-content: center;
   }
-  #objective { grid-area: obj; }
-  #stage-wrap { grid-area: stage; align-self: start; }
-  .dialog { grid-area: dialog; }
-  #commands, #minigame { grid-area: cmd; }
+  #topbar { grid-column: 1 / -1; }
+  #stage-wrap { width: var(--stage-w, 512px); height: var(--stage-h, 320px); box-sizing: content-box; }
+  #side { height: calc(var(--stage-h, 320px) + 4px); }
+  .dialog { flex: 1; height: auto; }                      /* 会話は残りの高さをぜんぶ使う（ポートピア風） */
+  #panel { flex: 0 0 auto; }                               /* コマンド枠は下に固定の大きさ */
+  #commands { grid-auto-rows: 52px; }
 }

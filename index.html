@@ -23,15 +23,19 @@
   </section>
 
   <section id="play" class="screen hidden">
-    <div id="objective"></div>
+    <div id="topbar"><div id="objective"></div><button id="btn-menu">メニュー</button></div>
     <div id="stage-wrap"><canvas id="stage" width="256" height="160"></canvas></div>
-    <div id="dialog" class="dialog nare">
-      <div id="d-name"></div>
-      <div id="d-text"></div>
-      <div id="d-next">▼</div>
+    <div id="side">
+      <div id="dialog" class="dialog nare">
+        <div id="d-name"></div>
+        <div id="d-text"></div>
+        <div id="d-next">▼</div>
+      </div>
+      <div id="panel">
+        <div id="commands"></div>
+        <div id="minigame" class="hidden"></div>
+      </div>
     </div>
-    <div id="minigame" class="hidden"></div>
-    <div id="commands"></div>
   </section>
 
   <section id="chapter-end" class="screen hidden">

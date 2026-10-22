@@ -34,7 +34,7 @@
   let game = null;      // 実行中のミニゲーム（キー入力の受け口）
 
   const ui = {};
-  ['title', 'play', 'stage', 'stage-wrap', 'objective', 'dialog', 'd-name', 'd-text', 'd-next', 'commands', 'minigame',
+  ['title', 'play', 'stage', 'stage-wrap', 'objective', 'dialog', 'd-name', 'd-text', 'd-next', 'commands', 'minigame', 'panel', 'btn-menu',
     'menu', 'menu-panel', 'chapter-end', 'ce-title', 'ce-text', 'btn-next', 'toast', 'btn-new', 'btn-continue', 'btn-size', 'btn-costume',
     'card', 'card-small', 'card-label', 'card-big']
     .forEach(id => { ui[id] = $(id); });
@@ -148,7 +148,7 @@
         if (fadeAlpha) fadeAlpha = 0;
         mode = 'dialog';
         showSay(ev);
-        ui.commands.classList.add('hidden');
+        ui.commands.classList.add('busy');   // 枠は残したまま薄くする
         render();
         if (SKIP) setTimeout(step, 0);
         break;
@@ -225,7 +225,7 @@
     mode = 'end';
   }
   function totals() {
-    const all = DATA.chapters.flatMap(ch => ch.blocks.flatMap(b => b.discoveries));
+    const all = DATA.chapters.flatMap((ch, ci) => { const ids = new Set(); return ch.blocks.flatMap(b => b.discoveries).filter(d => !ids.has(d.id) && ids.add(d.id)); });
     return { found: Object.keys(E.found).length, total: all.filter(d => !d.special).length, special: Object.keys(E.special).length, specialTotal: all.filter(d => d.special).length };
   }
 
@@ -253,13 +253,13 @@
     const frag = document.createDocumentFragment();
     if (group) {
       group.targets.forEach(t => frag.appendChild(button(t, () => doCommand(`${group.base}→${t}`))));
-      frag.appendChild(button('もどる', () => renderCommands(), 'wide'));
+      frag.appendChild(button('もどる', () => renderCommands()));
     } else {
       E.commands().forEach(c => frag.appendChild(button(c.targets.length ? c.base + ' →' : c.base, () => c.targets.length ? renderCommands(c) : doCommand(c.base))));
-      frag.appendChild(button('メニュー', openMenu, 'wide'));
     }
     ui.commands.replaceChildren(frag);
     ui.commands.classList.remove('hidden');
+    ui.commands.classList.remove('busy');
   }
 
   // ---------- メニュー ----------
@@ -550,20 +550,26 @@
     if (v.pose.茜 === 'なでる' && gp) drawHeart(gp[0] + 10, gp[1] - 22);
     if (fadeAlpha > 0) rect(0, 0, 256, 160, `rgba(0,0,0,${fadeAlpha})`);
   }
+  // 絵の大きさを決める。縦長: 幅いっぱい（枠の端をそろえる）。横長: 右の列（会話とコマンド）を置いた残りの幅
   function fitCanvas() {
-    const wrap = ui['stage-wrap'];
-    if (!wrap.clientWidth) return;
-    const dpr = window.devicePixelRatio || 1;
-    const availW = Math.max(256, wrap.clientWidth - 4);
-    const portrait = window.innerHeight > window.innerWidth;
-    const maxH = window.innerHeight * (portrait ? 0.40 : 0.75);
-    let phys = Math.max(1, Math.floor(availW * dpr / 256));       // 端末の実ピクセルで整数倍
-    while (phys > 1 && phys * 160 / dpr > maxH) phys--;
-    let cssW = Math.min(phys * 256 / dpr, availW, 768);
-    // 整数倍だと幅の2割以上が余るときは、にじみより大きさを優先して幅いっぱいにする
-    if (cssW < availW * 0.8 && availW * 160 / 256 <= maxH) cssW = Math.min(availW, 768);
+    const app = document.getElementById('app');
+    const landscape = window.matchMedia('(orientation: landscape) and (min-width: 700px)').matches;
+    let cssW;
+    if (landscape) {
+      const appW = app.clientWidth - 24;                       // #app の左右の余白
+      const sideW = Math.min(420, Math.max(300, appW * 0.4));
+      cssW = Math.min(768, appW - sideW - 16 - 4);
+      const maxH = window.innerHeight - 110;                   // 上のバーと余白
+      if (cssW * 160 / 256 > maxH) cssW = Math.floor(maxH * 256 / 160);
+      cssW = Math.max(256, cssW);
+    } else {
+      cssW = Math.max(256, ui['stage-wrap'].clientWidth - 4);
+    }
+    const cssH = Math.round(cssW * 160 / 256);
+    ui.play.style.setProperty('--stage-w', cssW + 'px');
+    ui.play.style.setProperty('--stage-h', cssH + 'px');
     cv.style.width = cssW + 'px';
-    cv.style.height = (cssW * 160 / 256) + 'px';
+    cv.style.height = cssH + 'px';
   }
 
   // ---------- ミニゲーム ----------
@@ -582,6 +588,8 @@
     game = null;
     ui.minigame.classList.add('hidden');
     ui.minigame.replaceChildren();
+    ui.commands.classList.remove('hidden');
+    ui.commands.classList.add('busy');
     mode = 'dialog';
     render();
     step({ result, set });
@@ -595,15 +603,15 @@
     const seg = Number(p.区間) || 1;
     const carried = !!p.だっこ;   // 茜に抱かれて進む（何も起きない）
     const LANES = [124, 135, 147];   // 足元の y（奥・中・手前）
-    const CAT_X = 72;
+    const BASE_X = 72;   // 猫の基本の位置（茜との距離）
     const KINDS = {   // 物 = 当たるとつまずく（足元の小物）, 誘 = 触れると寄り道（猫の誘惑）
       1: [['みずたまり', '物'], ['うえきばち', '物'], ['ちょう', '誘']],
       2: [['こえだ', '物'], ['おちばのやま', '物'], ['くさのほ', '誘'], ['おちば', '誘'], ['ちょう', '誘']],
       3: [['あきかご', '物'], ['しきもの', '物'], ['のぼり', '誘'], ['さかな', '誘']],
     }[seg] || [['みずたまり', '物'], ['ちょう', '誘']];
     const t0 = Date.now();
-    let scroll = 0, lane = 1, laneY = LANES[1], akLane = 1, akY = LANES[1], akX = 176, done = false;
-    let stumbles = 0, detours = 0, stumbleUntil = 0, chaseUntil = 0, cueUntil = 0, smileUntil = 0, nextItem = 0, nextTurn = 0, lastTemptEnd = 0;
+    let scroll = 0, lane = 1, laneY = LANES[1], akLane = 1, akY = LANES[1], akX = 176, catX = BASE_X, done = false, skipped = false, dashing = false;
+    let stumbles = 0, detours = 0, waits = 0, overtakes = 0, stumbleUntil = 0, chaseUntil = 0, cueUntil = 0, smileUntil = 0, nextItem = 0, nextTurn = 0, lastTemptEnd = 0;
     let wasChasing = false, wasSameLane = true;
     const items = [];
     const status = el('div', 'prog', carried ? 'お姉ちゃんの腕の中。ゆられている' : '');
@@ -611,20 +619,28 @@
     const up = el('button', 'big', '▲ おく'), down = el('button', 'big', '▼ てまえ');
     up.style.minWidth = down.style.minWidth = '120px'; up.style.minHeight = down.style.minHeight = '60px';
     const col = el('div', 'col'); col.append(up, down);
-    const skipBtn = button('スキップ', () => finish());
+    const dash = el('button', 'big', 'ダッシュ'); dash.style.minWidth = '120px'; dash.style.minHeight = '60px';
+    const skipBtn = button('スキップ', () => finish(true)); skipBtn.style.minHeight = '36px'; skipBtn.style.fontSize = '13px'; skipBtn.style.opacity = '.7';
+    const left = el('div', 'col'); left.append(dash, skipBtn);
     const bottom = el('div', 'row'); bottom.style.width = '100%'; bottom.style.justifyContent = 'space-between'; bottom.style.alignItems = 'flex-end';
-    bottom.append(skipBtn, carried ? el('div') : col);
+    bottom.append(carried ? skipBtn : left, carried ? el('div') : col);
+    hold(dash, () => { dashing = true; }, () => { dashing = false; });
     const title = carried ? '抱っこで進む。何もしなくていい' : seg === 1 ? 'お姉ちゃんについていこう。▲▼で道を変える。足元の物はよけて、蝶に気を取られない' : seg === 2 ? '公園の道。落ち葉や草の穂が気になる……' : '商店街。もうすぐ川原';
     ui.minigame.replaceChildren(el('div', 'title', title), status, bar, bottom);
-    const move = d => { if (done || carried || Date.now() < chaseUntil) return; lane = Math.max(0, Math.min(2, lane + d)); };
+    const move = d => {
+      if (done || carried || Date.now() < chaseUntil) return;
+      const pulling = items.find(it => it.pullDir);
+      if (pulling && Math.sign(d) !== Math.sign(pulling.pullDir)) { pulling.resisted = true; pulling.pullDir = 0; status.textContent = '……がまん。お姉ちゃんの方へ'; }
+      lane = Math.max(0, Math.min(2, lane + d));
+    };
     up.onpointerdown = e => { e.preventDefault(); move(-1); };
     down.onpointerdown = e => { e.preventDefault(); move(1); };
     // 区間ごとの出し方
     const plan = seg === 1 ? { first: 4000, gap: [1300, 900], tempt: 0, lastTempt: true } : seg === 2 ? { first: 1500, gap: [1700, 900], tempt: 0.6 } : { first: 1200, gap: [1200, 700], tempt: 0.35 };
-    function finish() {
+    function finish(skip) {
       if (done) return;
       done = true; clearInterval(timer);
-      const grade = carried ? 'だっこ' : detours >= 2 ? 'よりみち' : (detours === 0 && stumbles === 0) ? 'ぴったり' : 'ふつう';
+      const grade = carried ? 'だっこ' : skip ? 'ふつう' : detours >= 2 ? 'よりみち' : waits >= 1 ? 'おくれ' : overtakes >= 1 ? 'さきばしり' : (detours === 0 && stumbles === 0) ? 'ぴったり' : 'ふつう';
       setTimeout(() => endGame('せいこう', { さんぽ: grade }), 300);
     }
     const timer = setInterval(() => {
@@ -636,6 +652,18 @@
       laneY += (LANES[lane] - laneY) * 0.35;
       akY += (LANES[akLane] - akY) * 0.2;
       if (quiet) akX += (118 - akX) * 0.01;
+      if (!carried) {
+        if (dashing && !chasing && !stumbling) catX += 1.4;
+        else if (!chasing && !stumbling) catX += (BASE_X - catX) * 0.02;   // 遅れはゆっくり取り戻す
+        if (catX >= akX - 12) {   // 追い抜いた: 茜が笑って止める。猫は戻る
+          overtakes++; catX = BASE_X; dashing = false; smileUntil = now + 1000; cueUntil = 0;
+          status.textContent = '茜「こら、先行ったらあかん！ ……元気やなぁ」';
+        }
+        if (catX < 14) {   // 遅れすぎ: 茜が振り返って待ってくれる
+          waits++; catX = 44; cueUntil = now + 1200;
+          status.textContent = '茜「はよおいで。待ったるから」';
+        }
+      }
       if (chasing !== wasChasing) { if (!chasing) status.textContent = '茜「見終わった？ ほな、行こか」'; wasChasing = chasing; }
       const same = lane === akLane;
       if (same && !wasSameLane && !carried) { smileUntil = now + 900; status.textContent = '茜がこっちを見て、笑った'; }
@@ -660,11 +688,16 @@
         it.x -= speed;
         if (it.hit || chasing) continue;
         const inLane = Math.abs(laneY - LANES[it.lane]) < 4;
-        it.near = inLane && it.type === '誘' && it.x > CAT_X && it.x < CAT_X + 56;   // 予兆: 猫が気づく
-        if (inLane && it.x < CAT_X + 7 && it.x + 10 > CAT_X - 7) {
+        it.near = inLane && it.type === '誘' && it.x > catX && it.x < catX + 56;   // 予兆: 猫が気づく
+        // 隣の道の誘惑とすれ違うと、本能でそっちへ行ってしまう（反対方向を押せばがまんできる）
+        if (it.type === '誘' && !it.resisted && Math.abs(it.lane - lane) === 1 && it.x > catX - 6 && it.x < catX + 44) {
+          if (!it.pullT) { it.pullT = now; it.pullDir = it.lane - lane; it.near = true; status.textContent = '……気になる'; }
+          else if (now - it.pullT > 500 && it.pullDir) { lane = it.lane; it.pullDir = 0; }
+        } else if (it.pullDir && !(Math.abs(it.lane - lane) === 1)) it.pullDir = 0;
+        if (inLane && it.x < catX + 7 && it.x + 10 > catX - 7) {
           it.hit = true;
-          if (it.type === '物') { stumbles++; stumbleUntil = now + 700; status.textContent = '茜「大丈夫かー？」'; }
-          else { detours++; chaseUntil = now + 1200; status.textContent = '茜「……気になるん？ ちょっとだけやで」'; }
+          if (it.type === '物') { stumbles++; stumbleUntil = now + 700; catX -= 16; status.textContent = '茜「大丈夫かー？」'; }
+          else { detours++; chaseUntil = now + 1200; catX -= 22; status.textContent = '茜「……気になるん？ ちょっとだけやで」'; }
         }
       }
       while (items.length && items[0].x < -24) items.shift();
@@ -714,10 +747,10 @@
           if (now < smileUntil) drawHeart(ax + 10, ay - 40);
         } });
         if (!carried) layers.push({ y: laneY + 0.1, f: () => {
-          const cy = Math.round(laneY);
-          if (!(stumbling && Math.floor(now / 80) % 2)) drawSprite('cat_sit', CAT_X, cy - (chasing ? 0 : bob));
-          if (chasing) { rect(CAT_X - 1, cy - 24, 2, 4, C.yellow); rect(CAT_X - 1, cy - 19, 2, 1, C.yellow); }   // 気を取られた
-          else if (items.some(it => it.near)) { rect(CAT_X - 2, cy - 24, 4, 1, C.white); rect(CAT_X + 1, cy - 23, 1, 2, C.white); rect(CAT_X, cy - 21, 1, 1, C.white); rect(CAT_X, cy - 19, 1, 1, C.white); }   // 予兆の「？」
+          const cy = Math.round(laneY), cx0 = Math.round(catX);
+          if (!(stumbling && Math.floor(now / 80) % 2)) drawSprite('cat_sit', cx0, cy - (chasing ? 0 : bob));
+          if (chasing) { rect(cx0 - 1, cy - 24, 2, 4, C.yellow); rect(cx0 - 1, cy - 19, 2, 1, C.yellow); }   // 気を取られた
+          else if (items.some(it => it.near)) { rect(cx0 - 2, cy - 24, 4, 1, C.white); rect(cx0 + 1, cy - 23, 1, 2, C.white); rect(cx0, cy - 21, 1, 1, C.white); rect(cx0, cy - 19, 1, 1, C.white); }   // 予兆の「？」
         } });
         layers.sort((a, b) => a.y - b.y).forEach(l => l.f());
       },
@@ -865,6 +898,7 @@
   };
   ui['btn-size'].onclick = cycleSize;
   ui['btn-costume'].onclick = cycleCostume;
+  ui['btn-menu'].onclick = openMenu;   // メニューは常に出しておく
 
   // ---------- 起動 ----------
   loadSettings();
