@@ -19,18 +19,25 @@ body.size-l { --text: 19px; }
 * { box-sizing: border-box; }
 html, body {
   margin: 0;
+  height: 100%;
   background: var(--bg);
   color: var(--fg);
   font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
   -webkit-text-size-adjust: 100%;
-  overflow-x: hidden;
+  overflow: hidden;   /* ページはスクロールしない。遊ぶ画面の大きさは fitCanvas() が見えている高さから決める */
 }
-#app { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 8px 12px calc(12px + env(safe-area-inset-bottom)); }
+#app {
+  height: 100vh;
+  height: 100dvh;   /* スマホのアドレスバーが出入りしても「見えている高さ」に追従する */
+  overflow: hidden;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 8px 12px calc(12px + env(safe-area-inset-bottom));
+}
 .hidden { display: none !important; }
 .screen { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 560px; }
 
-/* ── タイトル・章の終わり（決め打ちしない簡単な画面） ── */
-#title, #chapter-end { align-items: center; justify-content: center; text-align: center; flex: 1; }
+/* ── タイトル・章の終わり（決め打ちしない簡単な画面。窓が低いときは中でスクロール） ── */
+#title, #chapter-end { align-items: center; justify-content: center; text-align: center; flex: 1; min-height: 0; overflow-y: auto; }
 h1 { font-size: 40px; letter-spacing: .1em; margin: 0; }
 .sub { opacity: .8; margin: 0 0 16px; }
 .note { font-size: 12px; opacity: .7; margin-top: 24px; }

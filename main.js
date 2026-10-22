@@ -36,7 +36,7 @@
   let game = null;      // 実行中のミニゲーム（キー入力の受け口）
 
   const ui = {};
-  ['title', 'play', 'stage', 'stage-wrap', 'objective', 'dialog', 'd-name', 'd-text', 'd-next', 'commands', 'minigame', 'panel', 'btn-menu',
+  ['app', 'title', 'play', 'stage', 'stage-wrap', 'objective', 'dialog', 'd-name', 'd-text', 'd-next', 'commands', 'minigame', 'panel', 'btn-menu',
     'menu', 'menu-panel', 'chapter-end', 'ce-title', 'ce-text', 'btn-next', 'toast', 'btn-new', 'btn-continue', 'btn-size', 'btn-costume',
     'card', 'card-small', 'card-label', 'card-big', 'disc', 'btn-found']
     .forEach(id => { ui[id] = $(id); });
@@ -592,15 +592,17 @@
   }
   // 遊ぶ画面は決め打ちの大きさ（縦長 390×724、横長 960×448。内訳は style.css の先頭）を、端末の縦横の短い方に合わせて同じ倍率で縮める
   const DESIGN = { portrait: [390, 724], landscape: [960, 448] };
+  // 実際に見えている #app の内側（余白と safe-area を引いた大きさ）に収める。ページはスクロールさせない
   function fitCanvas() {
-    const vw = window.innerWidth, vh = window.innerHeight;
+    const cs = getComputedStyle(ui.app);
+    const vw = ui.app.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const vh = ui.app.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
     const landscape = vw > vh && vw >= 600;
     const [dw, dh] = DESIGN[landscape ? 'landscape' : 'portrait'];
-    const pad = 24;   // #app の左右の余白
-    const s = Math.min((vw - pad) / dw, (vh - 20) / dh, 1.6);
+    const s = Math.min(vw / dw, vh / dh, 1.6);
     ui.play.classList.toggle('portrait', !landscape);
     ui.play.classList.toggle('landscape', landscape);
-    ui.play.style.setProperty('--s', String(Math.max(0.5, s)));
+    ui.play.style.setProperty('--s', String(Math.max(0.35, s)));
   }
 
   // ---------- ミニゲーム ----------
@@ -908,6 +910,7 @@
   });
   document.addEventListener('keyup', e => { if (game && game.keyup) game.keyup(e); });
   window.addEventListener('resize', fitCanvas);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', fitCanvas);   // スマホのアドレスバーの出入り
   ui.menu.addEventListener('click', e => { if (e.target === ui.menu) closeMenu(); });
 
   ui['btn-new'].onclick = () => startChapter(0);   // 周回の記録は空になる。はっけんのコレクションは残る
