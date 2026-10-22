@@ -888,7 +888,8 @@
           if (next < plan.length && t >= plan[next].t) { callAt = now; callUntil = now + 2000; say(`茜「${plan[next].s}」`); next++; }
           if (callAt && now > callUntil) { callAt = 0; callUntil = 0; waited = true; waitUntil = now + 1200; say('茜「……おるな」（足元を確かめた）'); }
           const target = t < 8500 ? 36 : t < 10000 ? 36 - 16 * (t - 8500) / 1500 : 20;   // 8.5〜10 秒で隣へ
-          if (now < waitUntil) d -= speed * dt; else d += (target - d) * Math.min(1, dt * 3);
+          if (now < waitUntil) d = Math.max(16, d - speed * dt);   // 茜が止まって待つ間、猫は歩いて近づく（重ならない距離まで）
+          else d += (target - d) * Math.min(1, dt * 3);
           scroll += speed * dt;
           this.now = now; this.calling = !!callAt; this.smile = now < smileUntil; this.nod = now < nodUntil; this.glance = now < glanceUntil; this.d = d;
         },
