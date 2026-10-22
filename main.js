@@ -30,17 +30,20 @@
     return names;
   })();
   // costume: old = 中文版の衣装（基準。aivoice.jp のキャラクターページの立ち絵）, new = A.I.VOICE2 衣装, en = English 版衣装
-  const settings = { size: 'm', costume: 'old', font: 'dot' };   // font: dot = DotGothic16 / pixel = PixelMplus12（ファミコン風）/ std = 端末の書体
-  const FONT_LABEL = { dot: '文字: ドット', pixel: '文字: ファミコン風', std: '文字: 標準' };
-  const FONT_NEXT = { dot: 'pixel', pixel: 'std', std: 'dot' };
+  const settings = { size: 'm', costume: 'new', font: 'pixel' };   // font: pixel = PixelMplus12（ファミコン風。既定）/ std = 端末の書体。衣装の既定は A.I.VOICE2
+  const FONT_LABEL = { pixel: '文字: ファミコン風', std: '文字: 標準' };
+  const FONT_NEXT = { pixel: 'std', std: 'pixel' };
   const COSTUME_LABEL = { old: '衣装: 中文版', new: '衣装: A.I.VOICE2', en: '衣装: English' };
-  const COSTUME_NEXT = { old: 'new', new: 'en', en: 'old' };
+  const COSTUME_NEXT = { new: 'old', old: 'en', en: 'new' };
   // 台本の「!衣装 …」と設定の値を、素材 id の接尾辞に直す
   const COSTUME_SUFFIX = { old: '', new: '_v2', en: '_en', 中文: '', 中文版: '', 旧: '', 新: '_v2', English: '_en', 英: '_en' };
   const params = new URLSearchParams(location.search);
   const SKIP = params.get('skip') === '1';   // 確認用: 台詞を自動で送る
   const AUTO = (params.get('play') || '').split(',').filter(Boolean);   // 確認用: コマンドを順に自動実行
-  const STOP = params.get('stop') || '';   // 確認用: skip=1 のとき、この文字を含む台詞で自動送りを止める（途中の絵を見る）
+  const STOP = params.get('stop') || '';
+  const BOT = params.get('walkbot') || '';   // 確認用の自動プレイヤー: idle（何もしない）/ follow（ついていく）/ lead（追い越して案内）/ curious（気になる物を見に行く）
+  const DEBUG_LOG = params.get('debug') === '1' ? (() => { const d = document.createElement('pre'); d.id = 'debug-log'; d.style.display = 'none'; document.body.appendChild(d); return d; })() : null;
+  const dlog = o => { if (DEBUG_LOG) DEBUG_LOG.textContent += JSON.stringify(o) + '\n'; };   // 確認用: skip=1 のとき、この文字を含む台詞で自動送りを止める（途中の絵を見る）
   const GAME_SKIP = params.get('game') === 'skip';   // 確認用: ミニゲームを成功あつかいで飛ばす
 
   let mode = 'title';   // title | dialog | commands | minigame | end
@@ -80,10 +83,11 @@
     if (s && ['s', 'm', 'l'].includes(s.size)) settings.size = s.size;
     if (s && COSTUME_LABEL[s.costume]) settings.costume = s.costume;
     if (s && FONT_LABEL[s.font]) settings.font = s.font;
+    if (s && s.font === 'dot') settings.font = 'pixel';   // 旧設定（DotGothic16）はファミコン風へ
     if (FONT_LABEL[params.get('font')]) settings.font = params.get('font');   // 確認用: ?font=dot|pixel|std
   }
   function applySize() {
-    document.body.className = 'size-' + settings.size + (settings.font === 'dot' ? '' : ' font-' + settings.font);
+    document.body.className = 'size-' + settings.size + (settings.font === 'std' ? ' font-std' : '');
     ui['btn-size'].textContent = '文字の大きさ: ' + { s: '小', m: '中', l: '大' }[settings.size];
     ui['btn-font'].textContent = FONT_LABEL[settings.font];
     ui['btn-costume'].textContent = COSTUME_LABEL[settings.costume];
@@ -409,11 +413,9 @@
     frag.appendChild(el('h2', null, 'クレジット'));
     frag.appendChild(el('p', 'small', '「妹はネコ」は琴葉茜・琴葉葵の非公式ファンゲームです。キャラクターの権利は権利者に帰属します'));
     const ul = el('ul');
-    const li1 = el('li', 'small', 'フォント: DotGothic16（Fontworks Inc.）— SIL Open Font License 1.1　');
-    const a1 = el('a', null, 'ライセンス全文'); a1.href = 'fonts/LICENSE-DotGothic16-OFL.txt'; a1.target = '_blank'; a1.rel = 'noopener'; li1.appendChild(a1);
     const li2 = el('li', 'small', 'フォント: PixelMplus（M+ FONTS PROJECT）— M+ FONT LICENSE　');
     const a2 = el('a', null, 'ライセンス全文'); a2.href = 'fonts/LICENSE-PixelMplus-mplus.txt'; a2.target = '_blank'; a2.rel = 'noopener'; li2.appendChild(a2);
-    ul.append(li1, li2);
+    ul.append(li2);
     frag.appendChild(ul);
     frag.appendChild(el('p', 'small', 'フォントは台本で使う文字だけに絞った WOFF2 に変換して同梱しています（元のフォントは変更していません）'));
     frag.appendChild(button('とじる', closeMenu));
@@ -760,7 +762,8 @@
     ui.minigame.replaceChildren(title, statusRow, bar, bottom);
     let msgUntil = 0;
     const say = s => { status.textContent = s; };
-    const event = (s, ms) => { say(s); msgUntil = Date.now() + (ms || 1800); };
+    const log = [];
+    const event = (s, ms) => { say(s); msgUntil = Date.now() + (ms || 1800); log.push(Math.round((Date.now() - t0) / 100) / 10 + 's ' + s); };
     function finish(grade, extra) {
       if (done) return;
       done = true; clearInterval(timer);
@@ -834,6 +837,9 @@
     }[seg] || [];
     if (seg === 2) { akLane = 2; lane = 2; laneY = akY = LANES[2]; }   // 公園は手前の道から
     let talkI = 0;
+    // 進行は時間ではなく「道のり」で数える: 予定の t 秒 = 通常の歩き（18 px/秒）で t 秒ぶん進んだ地点。
+    // 寄り道や待ちで足が止まれば、その分あとの出来事も待つので、用意した要素は必ず全部通り過ぎてから区間が終わる
+    const roadLen = (total / 1000) * V.cat;
 
     // ── 操作 ──
     const move = dir => {
@@ -875,8 +881,8 @@
       }
     }
     function tick(t, dt, now) {
-      const T = t / 1000;
       if (carried) { scroll += 40 * dt; return; }
+      const T = scroll / V.cat;   // 「道のりの時刻」。止まっている間は進まない
       const busy = !!tempt || !!playing || !!chase || !!callAt || now < stumbleUntil;
       // 予定
       for (const ev of PLAN) {
@@ -904,7 +910,21 @@
       act.textContent = callAt ? 'なく' : 'ダッシュ'; act.appendChild(gauge); act.classList.toggle('glow', !!callAt);
 
       // 速度
-      if (params.get('walkbot') === 'lead' && F.dash && T < 4) dashing = true;
+      if (BOT && !carried) {
+        const bot = view;   // 直前の入力時刻を置く
+        const nearTempt = items.find(it => it.type === '誘' && !it.hit && !it.over && it.x > CAT_X - 8 && it.x < CAT_X + 80);
+        const can = now - (bot.moveAt || 0) > 400;
+        if (BOT === 'curious' && nearTempt && !tempt && !playing && !chase) { if (lane !== nearTempt.lane && can) { move(Math.sign(nearTempt.lane - lane)); bot.moveAt = now; } }
+        else if (BOT === 'follow' && tempt && can) { move(Math.sign(lane - tempt.lane) || (lane === 0 ? 1 : -1)); bot.moveAt = now; }
+        else if (BOT !== 'idle' && lane !== akLane && !chase && !playing && !tempt && can) { move(Math.sign(akLane - lane)); bot.moveAt = now; }
+        if (F.dash) {
+          if (BOT === 'lead') dashing = T < 4 || (leading && d > -20) || (!leading && d > 52);
+          else if (BOT === 'follow' || BOT === 'curious') dashing = !leading && d > 50;
+          else dashing = false;
+          if (callAt) { dashing = false; needRelease = false; }
+          if (callAt && BOT !== 'idle' && now - callAt > (BOT === 'follow' ? 400 : 1500)) answer();
+        }
+      }
       const canDash = F.dash && dashing && stamina > 0 && !ahead && !playing && !chase && !callAt;
       if (canDash) { stamina = Math.max(0, stamina - dt / 2); catSpeed = V.dash; }
       else { if (!dashing) stamina = Math.min(1, stamina + dt / 2.5); catSpeed = V.cat; }
@@ -1083,9 +1103,14 @@
     const timer = setInterval(() => {
       const now = Date.now(), t = now - t0, dt = Math.min(0.1, (now - last) / 1000); last = now;
       tick(t, dt, now);
-      fill.style.width = Math.min(100, t / total * 100) + '%';
+      const progress = carried ? t / total : scroll / roadLen;   // 道のりで進む（だっこは何も起きないので時間で）
+      fill.style.width = Math.min(100, progress * 100) + '%';
       render();
-      if (t >= total) { finalize(); finish(grade(), flags()); }
+      if (progress >= 1 && !tempt && !playing && !chase && !callAt) {   // 途中の出来事が片付いてから終わる
+        finalize();
+        dlog({ 区間: seg, 秒: Math.round(t / 100) / 10, 成績: grade(), 印: flags(), 同じ道: Math.round(100 * (walkT ? sameT / walkT : 0)) + '%', 寄り道: detours, 待ち: waits, 追い越し: overtakes, 返事: replies, 道: route || '', 出来事: log });
+        finish(grade(), flags());
+      }
     }, 33);
     game = {
       stop: () => clearInterval(timer),

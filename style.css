@@ -8,15 +8,13 @@
    枠は「生成りの 2px 線 ＋ 内側に黒の 2px 線」で統一。角丸・影なし。押しているボタンだけ葵色、決定・はっけんは茜色 */
 
 /* ── 同梱フォント（game/fonts/。台本で使う文字だけに絞った WOFF2。tools/fontsubset.js で作る） ──
-   DotGothic16（フォントワークス。SIL OFL 1.1）／ PixelMplus（M+ FONTS PROJECT。M+ FONT LICENSE）。ライセンス文は game/fonts/LICENSE-*.txt */
-@font-face { font-family: "DotGothic16"; src: url("fonts/dotgothic16.woff2") format("woff2"); font-weight: 400; font-display: block; }
+   PixelMplus（M+ FONTS PROJECT。M+ FONT LICENSE）。ライセンス文は game/fonts/LICENSE-*.txt */
 @font-face { font-family: "PixelMplus12"; src: url("fonts/pixelmplus12.woff2") format("woff2"); font-weight: 400; font-display: block; }
 @font-face { font-family: "PixelMplus12"; src: url("fonts/pixelmplus12b.woff2") format("woff2"); font-weight: 700; font-display: block; }
 
 :root {
   --font-std: "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
-  --font-dot: "DotGothic16", var(--font-std);    /* 設定「文字: ドット」 */
-  --font-pixel: "PixelMplus12", var(--font-std); /* 設定「文字: ファミコン風」 */
+  --font-pixel: "PixelMplus12", var(--font-std); /* 設定「文字: ファミコン風」（既定） */
   --bg: #101018;
   --panel: #181828;
   --fg: #e8e4d8;       /* 生成り */
@@ -35,14 +33,13 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--font-dot);
+  font-family: var(--font-pixel);
   font-size: var(--text);
   line-height: var(--lh);
   -webkit-text-size-adjust: 100%;
   overflow: hidden;   /* ページはスクロールしない。遊ぶ画面の大きさは fitCanvas() が見えている高さから決める */
   overflow: clip;     /* hidden はボタンにフォーカスが移ると中がずれる（プログラム的にスクロールできる）ので、対応ブラウザでは clip */
 }
-body.font-pixel { font-family: var(--font-pixel); }
 body.font-std { font-family: var(--font-std); }   /* ドット文字が読みにくい人向け: 端末の書体 */
 #app {
   height: 100vh;
