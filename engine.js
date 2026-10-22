@@ -18,7 +18,8 @@
   const parseCond = t => { const m = t.match(/^([^:!]+)(!?):(.+)$/); return m ? (m[2] ? [m[1], m[3], '!'] : [m[1], m[3]]) : [t, '']; };
   const copyRun = r => JSON.parse(JSON.stringify(r));
   // spot = 状態を変えない見た目だけの位置（!いち 葵 つくえあしもと）。!茜 / !葵 / !場面 で消える
-  const freshVisual = () => ({ scene: '', props: {}, fallen: {}, pc: '', pose: { 茜: 'ふつう', 葵: 'すわり' }, spot: {}, objective: '', pudding: 180 });
+  // hidden = !かたづけ で消した小物（場面の初期小物も消せる）。!小物 で戻る
+  const freshVisual = () => ({ scene: '', props: {}, fallen: {}, hidden: {}, pc: '', pose: { 茜: 'ふつう', 葵: 'すわり' }, spot: {}, objective: '', pudding: 180 });
 
   class Engine {
     constructor(data) {
@@ -190,7 +191,7 @@
           if (m) v.spot[m[1]] = m[2];
           return null;
         }
-        case 'かたづけ': delete v.props[a]; delete v.fallen[a]; return null;   // 小物を場面から消す（冷蔵庫へしまう など）
+        case 'かたづけ': delete v.props[a]; delete v.fallen[a]; v.hidden[a] = true; return null;   // 小物を場面から消す（冷蔵庫へしまう など）
         case 'もし': {   // !もし 条件 条件 へ 名前
           const m = a.match(/^(.*?)\s*へ\s+(\S+)$/);
           if (!m) return null;
@@ -204,12 +205,12 @@
         }
         case '茜ポーズ': v.pose.茜 = a; return null;
         case '葵ポーズ': v.pose.葵 = a; return null;
-        case '小物': v.props[a] = true; delete v.fallen[a]; return null;
+        case '小物': v.props[a] = true; delete v.fallen[a]; delete v.hidden[a]; return null;
         case 'おとす': v.fallen[a] = true; return null;
         case 'PC': v.pc = a === 'もどす' ? '' : a; return null;
         case '衣装': v.costume = (a === 'なし' || a === '設定') ? '' : a; return null;   // 場面ごとの着替え。空なら設定の衣装
         case 'エンド': this.ending = a; return null;   // 到達したエンディングの名前
-        case '場面': v.scene = a; v.props = {}; v.fallen = {}; v.spot = {}; v.pc = ''; return { type: 'scene', scene: a };
+        case '場面': v.scene = a; v.props = {}; v.fallen = {}; v.hidden = {}; v.spot = {}; v.pc = ''; return { type: 'scene', scene: a };
         case '暗転': return { type: 'fade' };
         case 'もくひょう': v.objective = a; return { type: 'objective', text: a };
         case 'クリア': this.cleared = true; this.runCleared[this.chapterIndex] = true; this.queue = []; return null;
