@@ -324,23 +324,59 @@
   }
 
   // ---------- メニュー ----------
+  // 二段のメニュー。概念でまとめる: ヒント／おもいで（はっけん・エンディング・ルート）／せってい（文字・衣装）／章をえらぶ
   function openMenu() {
     const p = ui['menu-panel'];
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, 'メニュー'));
     if (E.hasHint()) frag.appendChild(button('ヒント', () => { closeMenu(); doCommand('ヒント'); }));
-    frag.appendChild(button('はっけん', showFound));
-    frag.appendChild(button('エンディング', showEndings));
+    const c = E.counts();
+    frag.appendChild(button(`おもいで　— はっけん ${c.found}/${c.total} ・ エンディング ・ ルート`, showMemories));
+    frag.appendChild(button('せってい　— 文字 ・ 衣装', showSettings));
     frag.appendChild(button('章をえらぶ', showChapters));
-    frag.appendChild(button(ui['btn-size'].textContent, function () { cycleSize(); this.textContent = ui['btn-size'].textContent; }));
-    frag.appendChild(button(ui['btn-font'].textContent, function () { cycleFont(); this.textContent = ui['btn-font'].textContent; }));
-    frag.appendChild(button(ui['btn-costume'].textContent, function () { cycleCostume(); this.textContent = ui['btn-costume'].textContent; }));
     frag.appendChild(button('タイトルへ', () => { closeMenu(); initTitle(); }));
     frag.appendChild(button('とじる', closeMenu));
     p.replaceChildren(frag);
     ui.menu.classList.remove('hidden');
   }
   function closeMenu() { ui.menu.classList.add('hidden'); }
+  function showMemories() {
+    const p = ui['menu-panel'];
+    const c = E.counts(), seen = seenEndings(), routesSeen = seenRoutes(), totalRoutes = ROUTES.reduce((n, r) => n + r.length, 0);
+    const frag = document.createDocumentFragment();
+    frag.appendChild(el('h2', null, 'おもいで'));
+    frag.appendChild(button(`はっけん　${c.found} / ${c.total}（この章）`, showFound));
+    frag.appendChild(button(`エンディング　${seen.length} / ${ENDINGS.length}`, showEndings));
+    frag.appendChild(button(`ルート　${routesSeen.length} / ${totalRoutes}`, showRoutes));
+    frag.appendChild(button('もどる', openMenu));
+    p.replaceChildren(frag);
+  }
+  function showSettings() {
+    const p = ui['menu-panel'];
+    const frag = document.createDocumentFragment();
+    frag.appendChild(el('h2', null, 'せってい'));
+    frag.appendChild(button(ui['btn-size'].textContent, function () { cycleSize(); this.textContent = ui['btn-size'].textContent; }));
+    frag.appendChild(button(ui['btn-font'].textContent, function () { cycleFont(); this.textContent = ui['btn-font'].textContent; }));
+    frag.appendChild(button(ui['btn-costume'].textContent, function () { cycleCostume(); this.textContent = ui['btn-costume'].textContent; }));
+    frag.appendChild(button('もどる', openMenu));
+    p.replaceChildren(frag);
+  }
+  function showRoutes() {
+    const p = ui['menu-panel'];
+    const routesSeen = seenRoutes(), totalRoutes = ROUTES.reduce((n, r) => n + r.length, 0);
+    const frag = document.createDocumentFragment();
+    frag.appendChild(el('h2', null, `ルート ${routesSeen.length} / ${totalRoutes}`));
+    frag.appendChild(el('p', 'note', '章のクリアのしかた。見つけたものだけ名前が出ます'));
+    DATA.chapters.forEach((ch, ci) => {
+      if (!ROUTES[ci].length) return;
+      const ul = el('ul');
+      ROUTES[ci].forEach(n => { const ok = routesSeen.includes(`${ci + 1}:${n}`); ul.appendChild(el('li', ok ? '' : 'todo', ok ? n : '？？？')); });
+      frag.appendChild(el('p', 'small', ch.title));
+      frag.appendChild(ul);
+    });
+    frag.appendChild(button('もどる', showMemories));
+    p.replaceChildren(frag);
+  }
   function showFound() {
     const p = ui['menu-panel'];
     const c = E.counts();
@@ -352,7 +388,7 @@
       ul.appendChild(li);
     });
     frag.appendChild(ul);
-    frag.appendChild(button('もどる', openMenu));
+    frag.appendChild(button('もどる', showMemories));
     p.replaceChildren(frag);
   }
   function showEndings() {
@@ -364,17 +400,7 @@
     ENDINGS.forEach(n => ul.appendChild(el('li', seen.includes(n) ? '' : 'todo', seen.includes(n) ? n : '？？？')));
     frag.appendChild(ul);
     frag.appendChild(el('p', 'note', '一日の過ごし方（よく食べた、よく甘えた、など）で変わります。条件を満たした終わり方が複数あれば、終章の前に選べます'));
-    // 章ごとの「クリアのしかた」
-    const routesSeen = seenRoutes(), totalRoutes = ROUTES.reduce((n, r) => n + r.length, 0);
-    frag.appendChild(el('h2', null, `章のクリアのしかた ${routesSeen.length} / ${totalRoutes}`));
-    DATA.chapters.forEach((ch, ci) => {
-      if (!ROUTES[ci].length) return;
-      const ul2 = el('ul');
-      ROUTES[ci].forEach(n => { const ok = routesSeen.includes(`${ci + 1}:${n}`); ul2.appendChild(el('li', ok ? '' : 'todo', ok ? n : '？？？')); });
-      frag.appendChild(el('p', 'small', ch.title));
-      frag.appendChild(ul2);
-    });
-    frag.appendChild(button('もどる', openMenu));
+    frag.appendChild(button('もどる', showMemories));
     p.replaceChildren(frag);
   }
   // クレジット（同梱フォントのライセンス表記。タイトルから）
