@@ -176,6 +176,7 @@
   }
   function onActionEnd(ev) {
     if (ev.fresh.length) toast(ev.fresh.map(d => (d.special ? '★ とくべつなはっけん: ' : 'はっけん: ') + d.name).join('\n'));
+    if (ev.cleared && params.get('hold') === '1') { mode = 'commands'; return; }   // 確認用: クリア画面に進まず最後の場面で止まる
     if (ev.cleared) {
       const next = E.chapterIndex + 1;
       saveFreshChapter(DATA.chapters[next] ? next : 0);   // 最後まで行ったら、はっけんを持ったまま1章から
@@ -327,7 +328,7 @@
   const LAYOUTS = {
     room: {
       茜: { つくえ: [36, 116], ソファ: [204, 140], ゆか: [140, 140], たち: [140, 140] },
-      葵: { ゆか: [120, 140], つくえ: [78, 104], ソファ: [172, 132] },
+      葵: { ゆか: [120, 140], つくえ: [78, 104], ソファ: [172, 132], となり: [187, 132] },   // となり = ソファで茜にくっつく
       葵人間: { ゆか: [168, 140], ソファ: [172, 140] },
       defaults: ['マグ', 'ノートPC', 'ペンたて', 'ほん'],
       props: { マグ: [90, 104], ノートPC: [46, 104], ペンたて: [100, 104], ほん: [104, 104], けしごむ: [86, 104], スマホ: [86, 104], かつおぶし: [112, 140], みず: [122, 140] },
@@ -502,11 +503,24 @@
   function drawTownFront(place) {
     if (place === 'かわら') { rect(156, 124, 48, 4, '#b07a48'); rect(158, 128, 3, 12, '#704020'); rect(199, 128, 3, 12, '#704020'); }
   }
+  // 位置が変わったとき、瞬間移動ではなく数フレームかけて動かす（場面が変わったときは瞬時）
+  const anim = { scene: '', pos: {} };
+  let animPending = false;
+  function tween(key, x, y) {
+    const a = anim.pos[key];
+    if (!a) { anim.pos[key] = { x, y }; return [x, y]; }
+    const dx = x - a.x, dy = y - a.y;
+    if (Math.abs(dx) < 0.6 && Math.abs(dy) < 0.6) { a.x = x; a.y = y; return [x, y]; }
+    a.x += dx * 0.22; a.y += dy * 0.22;
+    if (!animPending) { animPending = true; requestAnimationFrame(() => { animPending = false; render(); }); }
+    return [Math.round(a.x), Math.round(a.y)];
+  }
   function render() {
     if (game && game.draw) { game.draw(); return; }
     const v = E.visual;
     if (!v) return;
     const scene = v.scene || '';
+    if (scene !== anim.scene) { anim.scene = scene; anim.pos = {}; }
     const place = scene.split('・')[0];
     const kind = scene.startsWith('キッチン') ? 'kitchen' : TOWN.has(place) ? 'town' : 'room';
     const time = scene.includes('よる') ? 'yoru' : scene.includes('ゆうがた') ? 'yuu' : scene.includes('ひる') ? 'hiru' : 'asa';
@@ -519,7 +533,8 @@
       rect(0, 118, 256, 2, C.base);
     }
     const akaneCat = E.state.茜すがた === 'ネコ';
-    const ap = L.茜[E.state.茜] || (akaneCat ? L.茜.ゆか : null);
+    let ap = L.茜[E.state.茜] || (akaneCat ? L.茜.ゆか : null);
+    if (ap) ap = tween('茜', ap[0], ap[1]);
     const seated = (kind === 'room' && E.state.茜 === 'ソファ') || (kind === 'town' && E.state.茜 === 'ベンチ');
     if (ap && !akaneCat && !seated) drawSprite(humanSprite('akane_stand'), ap[0], ap[1]);   // 机の後ろに立つ（座って見える）
     if (kind === 'room') drawRoomFront(); else if (kind === 'kitchen') drawKitchenFront(); else drawTownFront(place);
@@ -531,7 +546,7 @@
     if (human) { gp = (L.葵人間 && L.葵人間[E.state.葵]) || [168, 140]; sp = humanSprite(E.state.葵 === 'ソファ' ? 'aoi_sit' : 'aoi_stand'); }
     else if (E.state.葵 === 'だっこ' && ap) { gp = [ap[0] + 6, ap[1] - 12]; sp = 'cat_sit'; }   // 茜の腕の中
     else { gp = L.葵[E.state.葵]; sp = v.pose.葵 === 'ねころぶ' ? 'cat_lie' : 'cat_sit'; }
-    if (gp) drawSprite(sp, gp[0], gp[1]);
+    if (gp) { gp = tween('葵', gp[0], gp[1]); drawSprite(sp, gp[0], gp[1]); }
     if (v.pose.茜 === 'なでる' && gp) drawHeart(gp[0] + 10, gp[1] - 22);
     if (fadeAlpha > 0) rect(0, 0, 256, 160, `rgba(0,0,0,${fadeAlpha})`);
   }
