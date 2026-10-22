@@ -127,17 +127,21 @@
     const c = E.counts();
     ui['btn-found'].textContent = `はっけん ${c.found}/${c.total}` + (c.specialTotal ? ` ★${c.special}/${c.specialTotal}` : '');
   }
-  // 画面全体のカード（章と目標の提示）。約2秒で自動的に閉じる。タップで早送り
+  // 画面全体のカード（章と目標の提示）。最初の 1.5 秒はタップを無視して必ず見せる（連打していても消えない）。その後はタップで閉じ、2.8 秒で自動的に閉じる
   function showCard(small, label, big, done) {
     const card = ui.card;
     ui['card-small'].textContent = small;
     ui['card-label'].textContent = label;
     ui['card-big'].textContent = big;
     card.classList.remove('hidden');
+    card.classList.add('locked');
+    mode = 'card';   // 表示中はキーやタップで裏の会話が進まないように
+    const shownAt = Date.now();
     let finished = false;
-    const finish = () => { if (finished) return; finished = true; clearTimeout(t); card.classList.add('hidden'); card.onclick = null; done(); };
-    const t = setTimeout(finish, 2200);
-    card.onclick = finish;
+    const finish = () => { if (finished) return; finished = true; clearTimeout(t); clearTimeout(u); card.classList.add('hidden'); card.onclick = null; done(); };
+    const t = setTimeout(finish, 2800);
+    const u = setTimeout(() => card.classList.remove('locked'), 1500);
+    card.onclick = () => { if (Date.now() - shownAt >= 1500) finish(); };
   }
   function button(label, fn, cls) { const b = el('button', cls, label); b.onclick = fn; return b; }
 

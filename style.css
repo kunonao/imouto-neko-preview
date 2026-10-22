@@ -252,6 +252,7 @@ h2 { font-weight: normal; }
 #card-label { font-size: 14px; opacity: .6; margin-top: 12px; }
 #card-big { font-size: 32px; line-height: 1.4; border-top: 2px solid var(--frame); border-bottom: 2px solid var(--frame); padding: 12px 20px; }
 #card .card-hint { font-size: 12px; opacity: .45; margin-top: 24px; }
+#card.locked .card-hint { opacity: 0; }   /* 最初の 1.5 秒は「タップで進む」を出さない（まだ閉じられないので） */
 
 #toast {
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
