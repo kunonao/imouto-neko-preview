@@ -1,0 +1,6 @@
+body { margin: 16px; font-family: system-ui, sans-serif; background: #202028; color: #eee; }
+h1 { font-size: 18px; }
+#list { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+.cell { text-align: center; font-size: 12px; }
+.cell canvas { image-rendering: pixelated; display: block; margin: 0 auto 4px; background: #8c8c8c; }
+button { font: inherit; }

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>妹はネコ（試作版）</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="size-m">
+<main id="app">
+  <section id="title" class="screen">
+    <h1>妹はネコ</h1>
+    <p class="sub">琴葉姉妹 非公式ファンゲーム・試作版</p>
+    <div class="col">
+      <button id="btn-new" class="big">はじめから</button>
+      <button id="btn-continue" class="big hidden">つづきから</button>
+      <button id="btn-size" class="big">文字の大きさ: 中</button>
+      <button id="btn-costume" class="big">衣装: 旧（VOICEROID）</button>
+    </div>
+    <p class="note">インストール不要・通信はゲームファイルの取得のみ・プレイ状況の送信なし</p>
+  </section>
+
+  <section id="play" class="screen hidden">
+    <div id="objective"></div>
+    <div id="stage-wrap"><canvas id="stage" width="256" height="160"></canvas></div>
+    <div id="dialog" class="dialog nare">
+      <div id="d-name"></div>
+      <div id="d-text"></div>
+      <div id="d-next">▼</div>
+    </div>
+    <div id="minigame" class="hidden"></div>
+    <div id="commands"></div>
+  </section>
+
+  <section id="chapter-end" class="screen hidden">
+    <h2 id="ce-title"></h2>
+    <p id="ce-text"></p>
+    <button id="btn-next" class="big">つぎへ</button>
+  </section>
+
+  <div id="menu" class="overlay hidden"><div class="panel" id="menu-panel"></div></div>
+  <div id="card" class="hidden">
+    <div id="card-small"></div>
+    <div id="card-label"></div>
+    <div id="card-big"></div>
+    <div class="card-hint">タップで進む</div>
+  </div>
+  <div id="toast" class="hidden"></div>
+</main>
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
