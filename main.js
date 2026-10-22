@@ -699,14 +699,14 @@
     const cue = (x, y) => { rect(x - 1, y, 2, 5, C.white); rect(x - 1, y + 6, 2, 2, C.white); };   // 「！」
     const FLOOR = 140;
 
-    // ── 区間1: 同じ道を歩く ──
+    // ── 区間1: 同じ道を歩く（20 秒。練習 1 回＋本番 4 回。最後に蝶を見せるだけ） ──
     function laneWalk() {
       const LANES = [124, 135, 147];
       const CAT_X = 72, AK_X = 128;
       let lane = 1, laneY = LANES[1], akLane = 1, akY = LANES[1], akOff = 0;
       let changeAt = 0, changeIsReal = false, hits = 0, stumbleUntil = 0, smileUntil = 0, cueUntil = 0;
-      const plan = [{ t: 4000, real: false }, { t: 6500, real: true }, { t: 10500, real: true, puddle: true }, { t: 14500, real: true, puddle: true }];
-      let next = 0;
+      const plan = [{ t: 3000, real: false }, { t: 5500, real: true }, { t: 8500, real: true, puddle: true }, { t: 11500, real: true, puddle: true }, { t: 14000, real: true }];
+      let next = 0, butterfly = null;
       const items = [];
       const up = el('button', 'big', '▲ おく'), down = el('button', 'big', '▼ てまえ');
       const move = d => { if (done) return; lane = Math.max(0, Math.min(2, lane + d)); };
@@ -732,6 +732,8 @@
             say(plan[next].real ? '茜「こっちやで」' : '茜「ほら、こっちの道な。練習や」');
             next++;
           }
+          if (!butterfly && t >= 16500) butterfly = { x: 270, lane: Math.random() < 0.5 ? 0 : 2 };   // 次の区間の予告。引かれない
+          if (butterfly) butterfly.x -= 30 * dt;
           if (changeAt && lane === akLane) {   // 合流
             if (now - changeAt <= 1500 && changeIsReal) hits++;
             if (now - changeAt <= 1500) { smileUntil = now + 900; say('茜がこっちを見て、笑った'); }
@@ -746,15 +748,16 @@
           while (items.length && items[0].x < -24) items.shift();
           this.now = now; this.stumbling = now < stumbleUntil; this.smile = now < smileUntil; this.cue = now < cueUntil;
         },
-        grade: () => (hits >= 2 ? 'ぴったり' : 'ふつう'),
+        grade: () => (hits >= 3 ? 'ぴったり' : 'ふつう'),
         draw() {
           drawSky(false);
           const shades = ['#7a7a82', '#8a8a90', '#9a9aa0'];
           rect(0, 118, 256, 12, shades[0]); rect(0, 130, 256, 11, shades[1]); rect(0, 141, 256, 19, shades[2]);
           for (let x = -(scroll % 24); x < 256; x += 24) { rect(x, 129, 6, 1, '#b0b0b8'); rect(x + 12, 140, 6, 1, '#b0b0b8'); }
           for (let x = -((scroll * 0.5) % 48); x < 256; x += 48) { rect(x, 100, 4, 18, '#a08060'); rect(x, 100, 48, 2, '#a08060'); }
-          const bob = Math.floor(scroll / 8) % 2;
+          const bob = Math.floor(scroll / 8) % 2, ph = Math.floor(scroll / 6) % 2;
           const layers = items.map(it => ({ y: LANES[it.lane], f: () => { const x = Math.round(it.x), y = LANES[it.lane]; rect(x, y - 2, 12, 2, '#5a8ac8'); rect(x + 2, y - 3, 8, 1, '#a0c8f0'); } }));
+          if (butterfly) layers.push({ y: LANES[butterfly.lane], f: () => { const x = Math.round(butterfly.x), y = LANES[butterfly.lane]; rect(x + ph, y - 12, 2, 2, C.yellow); rect(x + 3 - ph, y - 12, 2, 2, C.yellow); rect(x + 2, y - 11, 1, 2, C.black); } });
           layers.push({ y: akY, f: () => {
             const ax = Math.round(AK_X + akOff), ay = Math.round(akY);
             drawSprite(humanSprite('akane_stand'), ax, ay - bob);
@@ -770,59 +773,66 @@
       };
     }
 
-    // ── 区間2: 気になる。でも、ついていく ──
+    // ── 区間2: 気になる。でも、ついていく（18 秒。ボタンは「かける」だけ） ──
+    //   落ち葉が近づくと本能で引かれて減速（16→8 px/秒、最大 2 秒）。その間にスタミナを使って 0.5 秒かけ続ければ振り切れる
+    //   振り切らなければ 1.5 秒遊ぶ（よりみち）。誘惑の間は茜も歩幅を合わせ、距離の評価は止める
     function distWalk() {
       const CAT_X = 72;
       let d = 44, stamina = 1, dashing = false, catSpeed = 16, akSpeed = 20;
-      let waiting = false, detourUntil = 0, lookUntil = 0, cooldownUntil = 0, smileUntil = 0, cueUntil = 0, aheadUntil = 0;
+      let waiting = false, lookUntil = 0, cooldownUntil = 0, smileUntil = 0, cueUntil = 0, aheadUntil = 0;
       let detours = 0, waits = 0, overtakes = 0, inBand = 0, operable = 0, looked = false;
       const tempts = [{ t: 4000, kind: 'おちば' }, { t: 10000, kind: 'くさのほ' }];
-      let nextTempt = 0, tempt = null;   // { x, kind, until }
+      let nextTempt = 0, tempt = null;   // { x, kind, start, resist, playUntil, over }
       const leaves = [];
       const dash = el('button', 'big hold', 'かける'); const gauge = el('div', 'gauge'); dash.appendChild(gauge);
-      const look = el('button', 'big', 'みる');
       hold(dash, () => { dashing = true; }, () => { dashing = false; });
-      look.onpointerdown = e => { e.preventDefault(); doLook(); };
-      const doLook = () => {
-        if (done || !tempt || Date.now() > tempt.until || Date.now() < detourUntil) return;
-        detourUntil = Date.now() + 1500; detours++; tempt.until = 0; look.classList.remove('glow');
-        for (let i = 0; i < 6; i++) leaves.push({ x: CAT_X + 8 + Math.random() * 12, y: FLOOR - 4 - Math.random() * 10, vx: 10 + Math.random() * 20, vy: -20 - Math.random() * 20 });
-        say('……ちょっとだけ。茜「見終わってから行こか」');
-      };
       say('ちょうどいい距離で歩く。離れたら「かける」');
       return {
         title: '公園。お姉ちゃんとの距離を見て、かける・やすむ',
-        buttons: [dash, look],
-        key: e => { if (e.key === ' ' || e.key === 'ArrowRight') dashing = true; else if (e.key === 'ArrowDown') doLook(); },
+        buttons: [el('div'), dash, el('div')],
+        key: e => { if (e.key === ' ' || e.key === 'ArrowRight') dashing = true; },
         keyup: e => { if (e.key === ' ' || e.key === 'ArrowRight') dashing = false; },
         tick(t, dt, now) {
-          const detour = now < detourUntil;
-          // 誘惑: 2 秒だけ「みる」が光る
-          if (nextTempt < tempts.length && t >= tempts[nextTempt].t) { tempt = { x: CAT_X + 20, kind: tempts[nextTempt].kind, until: now + 2000 }; look.classList.add('glow'); say('……気になる。「みる」で寄り道してもいい'); nextTempt++; }
-          if (tempt && now > tempt.until) look.classList.remove('glow');
-          // 8 秒ごろ、茜が振り返って歩幅をゆるめる
-          if (!looked && t >= 8000) { looked = true; lookUntil = now + 1000; cueUntil = now + 1000; say('茜が、振り返った'); }
-          if (dashing && stamina > 0 && !detour) { stamina = Math.max(0, stamina - dt / 2); catSpeed = 40; }
-          else { stamina = Math.min(1, stamina + dt / 2.5); catSpeed = detour ? 0 : 16; }
+          if (nextTempt < tempts.length && t >= tempts[nextTempt].t) {
+            tempt = { x: CAT_X + 20, kind: tempts[nextTempt].kind, start: now, resist: 0, playUntil: 0, over: false };
+            say('……気になる。足が、勝手にゆっくりに'); nextTempt++;
+          }
+          const pulling = tempt && !tempt.over && !tempt.playUntil;
+          const playing = tempt && tempt.playUntil && now < tempt.playUntil;
+          const canDash = dashing && stamina > 0;
+          if (canDash) { stamina = Math.max(0, stamina - dt / 2); catSpeed = 40; }
+          else { stamina = Math.min(1, stamina + dt / 2.5); catSpeed = 16; }
+          if (pulling) {
+            if (canDash) { tempt.resist += dt; catSpeed = 40; } else catSpeed = 8;
+            if (tempt.resist >= 0.5) { tempt.over = true; say('……がまん。お姉ちゃんの方へ'); }
+            else if (now - tempt.start >= 2000) {   // 引かれた: 1.5 秒遊ぶ
+              tempt.playUntil = now + 1500; detours++; say('……ちょっとだけ。茜「見終わってから行こか」');
+              for (let i = 0; i < 6; i++) leaves.push({ x: CAT_X + 8 + Math.random() * 12, y: FLOOR - 4 - Math.random() * 10, vx: 10 + Math.random() * 20, vy: -20 - Math.random() * 20 });
+            }
+          }
+          if (playing) catSpeed = 0;
+          if (tempt && tempt.playUntil && now >= tempt.playUntil) tempt.over = true;
+          const tempting = pulling || playing;
           gauge.style.width = (stamina * 100) + '%';
-          akSpeed = detour || waiting ? 0 : now < lookUntil ? 10 : now < aheadUntil ? 30 : 20;
-          if (now < aheadUntil && d < 32) akSpeed = 30;
+          if (!looked && t >= 8000) { looked = true; lookUntil = now + 1000; cueUntil = now + 1000; say('茜が、振り返った'); }   // 8 秒ごろ、歩幅をゆるめる
+          akSpeed = tempting ? catSpeed : waiting ? 0 : now < lookUntil ? 10 : (now < aheadUntil && d < 32) ? 30 : 20;
           d += (akSpeed - catSpeed) * dt;
           scroll += catSpeed * dt;
-          if (tempt) tempt.x -= catSpeed * dt;
-          if (tempt && tempt.x < -20) tempt = null;
+          if (tempt) { tempt.x -= catSpeed * dt; if (tempt.over && tempt.x < -20) tempt = null; }
           leaves.forEach(l => { l.x += l.vx * dt; l.y += l.vy * dt; l.vy += 60 * dt; });
           while (leaves.length && leaves[0].y > FLOOR + 4) leaves.shift();
           const cool = now < cooldownUntil;
-          if (!waiting && !detour && !cool && d >= 84) { waiting = true; waits++; cueUntil = now + 1200; say('茜「はよおいで。待ったるから」'); }
-          if (waiting && d <= 52) { waiting = false; cooldownUntil = now + 2000; say('茜「ほな、行こか」'); }
-          if (!detour && !cool && d <= 12 && now > aheadUntil) {   // 追い抜く: 猫が前へ出て、茜が笑って追いつく
-            overtakes++; d = -16; aheadUntil = now + 2500; cooldownUntil = now + 2500; smileUntil = now + 1200; dashing = false;
-            say('茜「こら、先行ったらあかん！ ……元気やなぁ」');
+          if (!tempting) {
+            if (!waiting && !cool && d >= 84) { waiting = true; waits++; cueUntil = now + 1200; say('茜「はよおいで。待ったるから」'); }
+            if (waiting && d <= 52) { waiting = false; cooldownUntil = now + 2000; say('茜「ほな、行こか」'); }
+            if (!cool && d <= 12 && !aheadUntil) {   // 追い抜く: 猫が前へ出て、茜が笑って追いつく
+              overtakes++; d = -16; aheadUntil = now + 2500; cooldownUntil = now + 2500; smileUntil = now + 1200; dashing = false;
+              say('茜「こら、先行ったらあかん！ ……元気やなぁ」');
+            }
+            if (aheadUntil && now >= aheadUntil && d > 32) aheadUntil = 0;
+            if (!waiting && !cool) { operable += dt; if (d >= 28 && d <= 52) inBand += dt; }
           }
-          if (now >= aheadUntil && aheadUntil && d > 32) { aheadUntil = 0; }
-          if (!detour && !waiting && !cool) { operable += dt; if (d >= 28 && d <= 52) inBand += dt; }
-          this.now = now; this.smile = now < smileUntil; this.cue = now < cueUntil; this.detour = detour; this.band = d >= 28 && d <= 52;
+          this.now = now; this.smile = now < smileUntil; this.cue = now < cueUntil; this.pull = pulling; this.play = playing; this.band = d >= 28 && d <= 52;
           this.d = d;
         },
         grade: () => (detours ? 'よりみち' : waits ? 'おくれ' : overtakes ? 'さきばしり' : operable && inBand / operable >= 0.6 ? 'ぴったり' : 'ふつう'),
@@ -842,19 +852,20 @@
               if (this.cue) cue(ax, ay - 42);
               if (this.smile) heart(ax + 10, ay - 40);
             } else {
-              drawSprite('cat_sit', CAT_X, FLOOR - (this.detour ? 0 : bob));
-              if (this.detour) { rect(CAT_X - 1, FLOOR - 24, 2, 4, C.yellow); rect(CAT_X - 1, FLOOR - 19, 2, 1, C.yellow); }
+              drawSprite('cat_sit', CAT_X, FLOOR - (this.play ? 0 : bob));
+              if (this.pull) { rect(CAT_X - 2, FLOOR - 24, 4, 1, C.white); rect(CAT_X + 1, FLOOR - 23, 1, 2, C.white); rect(CAT_X, FLOOR - 21, 1, 1, C.white); rect(CAT_X, FLOOR - 19, 1, 1, C.white); }   // 「？」= 気になっている
+              if (this.play) { rect(CAT_X - 1, FLOOR - 24, 2, 4, C.yellow); rect(CAT_X - 1, FLOOR - 19, 2, 1, C.yellow); }   // 「！」= 遊んでいる
             }
           }
         },
       };
     }
 
-    // ── 区間3: ここにいるよ ──
+    // ── 区間3: ここにいるよ（18 秒。呼びかけ 4 回。3 回目からは隣で） ──
     function callWalk() {
       const CAT_X = 72;
-      let d = 36, calls = 0, fast = 0, waited = false, callAt = 0, callUntil = 0, waitUntil = 0, smileUntil = 0, nodUntil = 0;
-      const plan = [{ t: 3000, s: 'そこ、おる？' }, { t: 7000, s: 'こっちやで' }, { t: 11000, s: '……一緒に行こか' }];
+      let d = 36, fast = 0, waited = false, callAt = 0, callUntil = 0, waitUntil = 0, smileUntil = 0, nodUntil = 0, glanceUntil = 0, lastFree = 0;
+      const plan = [{ t: 3000, s: 'そこ、おる？' }, { t: 6500, s: 'こっちやで' }, { t: 10000, s: '……おるな。隣、歩こか' }, { t: 13500, s: '……一緒に行こか' }];
       let next = 0;
       const meow = el('button', 'big', 'なく');
       const answer = () => {
@@ -864,25 +875,24 @@
           if (now - callAt <= 1200) { fast++; smileUntil = now + 1000; say('にゃあ。……茜が、笑った'); }
           else { nodUntil = now + 800; say('にゃ。……茜が、うなずいた'); }
           callAt = 0; callUntil = 0;
-        } else say('にゃ');
+        } else if (now - lastFree >= 1500) { lastFree = now; glanceUntil = now + 350; say('にゃ。……茜が、ちらっとこっちを見た'); }
       };
       meow.onpointerdown = e => { e.preventDefault(); answer(); };
       say('お姉ちゃんが声をかけたら、「なく」で返事');
       return {
         title: '商店街。声をかけられたら、返事をする',
         buttons: [el('div'), meow, el('div')],
-        key: e => { if (e.key === ' ' || e.key === 'Enter') answer(); },
+        key: e => { if (!e.repeat && (e.key === ' ' || e.key === 'Enter')) answer(); },
         tick(t, dt, now) {
           const speed = 28 - 10 * Math.min(1, t / total);
-          const quiet = t > total - 5000;
-          if (next < plan.length && t >= plan[next].t) { callAt = now; callUntil = now + 2000; calls++; say(`茜「${plan[next].s}」`); next++; }
+          if (next < plan.length && t >= plan[next].t) { callAt = now; callUntil = now + 2000; say(`茜「${plan[next].s}」`); next++; }
           if (callAt && now > callUntil) { callAt = 0; callUntil = 0; waited = true; waitUntil = now + 1200; say('茜「……おるな」（足元を確かめた）'); }
-          const akSpeed = now < waitUntil ? 0 : speed;
-          if (now < waitUntil) d -= speed * dt; else if (quiet) d += (20 - d) * dt * 1.5; else d += (36 - d) * dt;
+          const target = t < 8500 ? 36 : t < 10000 ? 36 - 16 * (t - 8500) / 1500 : 20;   // 8.5〜10 秒で隣へ
+          if (now < waitUntil) d -= speed * dt; else d += (target - d) * Math.min(1, dt * 3);
           scroll += speed * dt;
-          this.now = now; this.calling = !!callAt; this.smile = now < smileUntil; this.nod = now < nodUntil; this.d = d; this.quiet = quiet;
+          this.now = now; this.calling = !!callAt; this.smile = now < smileUntil; this.nod = now < nodUntil; this.glance = now < glanceUntil; this.d = d;
         },
-        grade: () => (!waited && fast >= 2 ? 'ぴったり' : waited ? 'おくれ' : 'ふつう'),
+        grade: () => (fast >= 3 ? 'ぴったり' : waited ? 'おくれ' : 'ふつう'),
         draw() {
           drawSky(false);
           rect(0, 118, 256, 42, '#8a8a90');
@@ -894,6 +904,7 @@
           drawSprite(humanSprite('akane_stand'), ax, ay - (this.nod ? 1 : bob));
           if (this.calling) cue(ax, ay - 42);
           if (this.smile) heart(ax + 10, ay - 40);
+          if (this.glance) { rect(ax - 3, ay - 40, 1, 1, C.white); rect(ax - 1, ay - 40, 1, 1, C.white); rect(ax + 1, ay - 40, 1, 1, C.white); }   // 「…」= ちらっ
         },
       };
     }
