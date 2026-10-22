@@ -745,6 +745,7 @@
   function walkGame(p) {
     const seg = Number(p.区間) || 1;
     const carried = !!p.だっこ;
+    const gallery = p.gallery || '';   // 確認用（?gallery=walk）: 物と誘惑を道に並べて止める。'zoom' は 3 倍の一覧
     const total = (Number(p.長さ) || 55) * 1000;
     if (seg === 1) walkMemo = { same: 0, walk: 0, replies: 0, detours: 0 };
     const F = { dash: seg >= 2, calls: seg >= 3 };
@@ -803,15 +804,16 @@
       // 道: 0 = 奥, 1 = 中, 2 = 手前。障害（物）は茜の道に出す（茜が先によけて戻る）。誘惑は茜の道から 2 本離れた端に出す
       1: [ // 60 秒 = 導入 10 ＋ 中盤 40 ＋ 終盤 10。茜は 中 → 手前 → 奥
         // 物の t は猫に届く時刻。茜はその 4〜5 秒前によける（d=56 → 届く 86px 手前）ので、その時刻に他の出来事を置かない
-        { t: 3, type: 'talk' }, { t: 7, type: 'change', to: 2 },
-        { t: 15, type: 'item', kind: 'みずたまり', style: '物', lane: 2 },   // よけ 10 秒ごろ
-        { t: 19, type: 'item', kind: 'ちょう', style: 'chase', lane: 0 },
+        // 奥 = 家側（鉢植え・塀）、手前 = 道路側。物はその場所にあって自然な側に置く（Codex 第24回）
+        { t: 3, type: 'talk' }, { t: 7, type: 'change', to: 0 },
+        { t: 15, type: 'item', kind: 'みずたまり', style: '物', lane: 0 },   // よけ 10 秒ごろ。塀ぎわの水まきの跡
+        { t: 19, type: 'item', kind: 'ちょう', style: 'chase', lane: 2 },   // 道路の上を飛ぶ
         { t: 25, type: 'glance' },
-        { t: 28, type: 'item', kind: 'みずたまり', style: '物', lane: 2 },   // よけ 23 秒ごろ
-        { t: 32, type: 'change', to: 0 },
+        { t: 28, type: 'item', kind: 'みずたまり', style: '物', lane: 0 },   // よけ 23 秒ごろ
+        { t: 32, type: 'change', to: 2 },
         { t: 35, type: 'talk' },
-        { t: 41, type: 'item', kind: 'はち', style: 'touch', lane: 2 },   // 鉢植えから垂れた葉
-        { t: 46, type: 'item', kind: 'ちょう', style: 'chase', lane: 2 },
+        { t: 41, type: 'item', kind: 'はち', style: 'touch', lane: 0 },   // 家先の鉢植えから垂れた葉
+        { t: 46, type: 'item', kind: 'ちょう', style: 'chase', lane: 0 },   // 塀の上を飛ぶ
         { t: 50, type: 'glance' },
         { t: 54, type: 'talk' },
       ],
@@ -844,6 +846,11 @@
       ],
     }[seg] || [];
     if (seg === 2) { akLane = 2; lane = 2; laneY = akY = LANES[2]; }   // 公園は手前の道から
+    if (gallery) {   // その区間の物と誘惑を、予定の道に 24 px おきに置く（動かさない）
+      let gx = 140;
+      for (const ev of PLAN) if (ev.type === 'item') { items.push({ x: gx, lane: ev.lane, kind: ev.kind, type: ev.style === '物' ? '物' : '誘', style: ev.style, seed: ev.t * 7, path: ev.style === '物' }); gx += 24; }
+      title.textContent = `確認: 区間${seg} の物と誘惑`;
+    }
     let talkI = 0;
     // 進行は時間ではなく「道のり」で数える: 予定の t 秒 = 通常の歩き（18 px/秒）で t 秒ぶん進んだ地点。
     // 寄り道や待ちで足が止まれば、その分あとの出来事も待つので、用意した要素は必ず全部通り過ぎてから区間が終わる
@@ -1059,21 +1066,44 @@
     function finalize() { walkMemo.same += sameT; walkMemo.walk += walkT; walkMemo.replies += replies; walkMemo.detours += detours; }
 
     // ── 絵 ──
+    const pix = (rows, x0, y0, pal) => rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] !== '.') rect(x0 + i, y0 + j, 1, 1, pal[r[i]]); });   // 1 文字 = 1 px
+    const BUTTERFLY = [   // Codex 第24回の図。K = 縁、Y = 羽。開く／半分の 2 コマ
+      ['.KK..KK.', 'KYYKKYYK', 'KYYKKYYK', '.KYKKYK.', '..KYYK..', '...KK...'],
+      ['..K..K..', '.KYKKYK.', '.KYKKYK.', '..KYYK..', '...KK...', '...KK...'],
+    ];
+    const EAR = ['...P...', '...P...', '..PPP..', '..PPP..', '...P...', '...G...', '...G.G.', '.G.GD..', '..GG...', '...D...'];   // 草の穂 1 本（先細り）
+    const LEAF = ['...OO.', '..OOO.', '.OOBO.', '..OB..', '.B....'];   // 斜めの葉身＋葉柄
     const drawItem = it => {
-      const x = Math.round(it.x), y = LANES[it.lane] + Math.round(it.dy || 0), ph = Math.floor((Date.now() / 100 + (it.seed || 0))) % 2;
+      const x = Math.round(it.x), y = (it.y != null ? it.y : LANES[it.lane]) + Math.round(it.dy || 0), ph = Math.floor((Date.now() / 100 + (it.seed || 0))) % 2;
       switch (it.kind) {
-        case 'みずたまり': rect(x, y - 2, 12, 2, '#5a8ac8'); rect(x + 2, y - 3, 8, 1, '#a0c8f0'); break;
-        case 'こえだ': rect(x, y - 2, 10, 1, '#6a4020'); rect(x + 6, y - 4, 1, 2, '#6a4020'); rect(x + 3, y - 3, 1, 1, '#6a4020'); break;
-        case 'あきかご': rect(x, y - 6, 9, 6, '#c8a060'); rect(x + 1, y - 5, 7, 4, '#a07838'); rect(x + 3, y - 8, 3, 2, '#c8a060'); break;
-        case 'だんボール': rect(x, y - 7, 11, 7, '#c8a878'); rect(x + 1, y - 6, 9, 1, '#a08050'); rect(x + 4, y - 4, 3, 2, '#a08050'); break;
-        case 'ちょう': rect(x + ph, y - 12, 2, 2, C.yellow); rect(x + 3 - ph, y - 12, 2, 2, C.yellow); rect(x + 2, y - 11, 1, 2, C.black); break;
-        case 'はち': rect(x + 2, y - 5, 6, 5, '#a05030'); rect(x + 1, y - 8, 8, 3, '#3a7a30'); rect(x + 8 + ph, y - 6, 3, 1, '#5a9a40'); rect(x + 10 + ph, y - 5, 2, 1, '#5a9a40'); break;   // 鉢植えから垂れた葉
-        case 'くさのほ': rect(x + 2, y - 8, 1, 8, '#8aa050'); rect(x + 1 + ph, y - 11, 3, 3, '#d8c890'); break;
-        case 'おちば': rect(x, y - 4 + ph, 3, 2, '#d08030'); rect(x + 1, y - 5 + ph, 1, 1, '#d08030'); break;
-        case 'さかなや': rect(x, y - 10, 2, 10, C.gray); rect(x + 2, y - 10, 12, 4, '#3868a8'); rect(x + 4, y - 9, 8, 1, C.white); rect(x + 3 + ph, y - 14, 1, 2, '#c8c8d0'); rect(x + 7 - ph, y - 15, 1, 2, '#c8c8d0'); break;   // 店先の台と、におい
+        case 'みずたまり':   // 楕円の水たまり（上下 1 段ずつ細く）＋ハイライト
+          rect(x + 2, y - 3, 8, 1, '#5a8ac8'); rect(x, y - 2, 12, 1, '#5a8ac8'); rect(x + 2, y - 1, 8, 1, '#5a8ac8'); rect(x + 3, y - 3, 4, 1, '#a0c8f0'); break;
+        case 'こえだ':   // 根元が太い小枝。枝分かれ 2 本
+          rect(x, y - 2, 10, 1, '#6a4020'); rect(x, y - 3, 3, 1, '#6a4020'); rect(x + 6, y - 4, 1, 2, '#6a4020'); rect(x + 8, y - 3, 1, 1, '#6a4020'); break;
+        case 'あきかご':   // 店の空きかご: 取っ手の弧＋台形＋編み目
+          rect(x + 3, y - 9, 4, 1, '#c8a060'); rect(x + 2, y - 8, 1, 1, '#c8a060'); rect(x + 7, y - 8, 1, 1, '#c8a060');
+          rect(x, y - 7, 10, 1, '#a07838'); rect(x, y - 6, 10, 4, '#c8a060'); rect(x + 1, y - 2, 8, 1, '#a07838');
+          for (let i = 0; i < 5; i++) { rect(x + 1 + i * 2, y - 5, 1, 1, '#a07838'); rect(x + 2 + i * 2, y - 4, 1, 1, '#a07838'); } break;
+        case 'だんボール':   // 段ボール箱: 上のふたの線＋中央のテープ
+          rect(x, y - 7, 11, 7, '#c8a878'); rect(x + 1, y - 6, 9, 1, '#a08050'); rect(x + 5, y - 7, 1, 7, '#a08050'); break;
+        case 'ちょう': pix(BUTTERFLY[Math.floor(Date.now() / 160 + (it.seed || 0)) % 2], x, y - 16, { K: C.black, Y: C.yellow }); break;   // 黄色い蝶＋縁取り。0.16 秒ごとに羽ばたく
+        case 'はち':   // 鉢植え（縁あり）から垂れた葉
+          rect(x + 2, y - 5, 6, 5, '#a05030'); rect(x + 1, y - 5, 8, 1, '#c06040'); rect(x + 1, y - 8, 8, 3, '#3a7a30'); rect(x + 8 + ph, y - 6, 3, 1, '#5a9a40'); rect(x + 10 + ph, y - 5, 2, 1, '#5a9a40'); break;
+        case 'くさのほ': pix(EAR, x - 1 + ph, y - 10, { P: '#d8c890', G: '#8aa050', D: '#5a7a30' }); break;   // 先細りの穂が揺れる
+        case 'おちば': pix(LEAF, x, y - 5 + ph, { O: '#d08030', B: '#805030' }); break;   // 転がる
+        case 'さかなや':   // 店先の台: 木の台＋氷＋銀の魚 2 匹＋におい
+          rect(x + 1, y - 5, 1, 5, '#8a6a40'); rect(x + 12, y - 5, 1, 5, '#8a6a40'); rect(x, y - 6, 14, 1, '#b08050'); rect(x + 1, y - 7, 12, 1, C.blue);
+          rect(x + 1, y - 9, 4, 2, C.white); rect(x + 6, y - 10, 1, 1, C.white); rect(x + 6, y - 8, 1, 1, C.white); rect(x + 5, y - 9, 1, 1, C.white); rect(x + 1, y - 9, 1, 1, C.black);
+          rect(x + 7, y - 9, 4, 2, C.white); rect(x + 12, y - 10, 1, 1, C.white); rect(x + 12, y - 8, 1, 1, C.white); rect(x + 11, y - 9, 1, 1, C.white); rect(x + 7, y - 9, 1, 1, C.black);
+          rect(x + 4 + ph, y - 13, 1, 2, '#c8c8d0'); rect(x + 8 - ph, y - 14, 1, 2, '#c8c8d0'); break;   // 店先の台と、におい
       }
     };
     function draw() {
+      if (gallery === 'zoom') {   // 確認用: 全部の物と誘惑を 3 倍で並べる（右下の猫は大きさの比較）
+        cx.save(); cx.scale(3, 3); rect(0, 0, 86, 54, seg === 2 ? '#4a8a40' : '#8a8a90');
+        ['みずたまり', 'こえだ', 'あきかご', 'だんボール', 'ちょう', 'はち', 'くさのほ', 'おちば', 'さかなや'].forEach((kind, i) => drawItem({ x: 3 + (i % 4) * 21, y: 16 + Math.floor(i / 4) * 18, lane: 1, kind, seed: i }));
+        drawSprite('cat_sit', 50, 52); cx.restore(); return;
+      }
       const dusk = seg === 3 ? Math.min(1, (view.T || 0) / (total / 1000)) : 0;
       drawSky(false);
       if (dusk) rect(0, 0, 256, 120, `rgba(20,16,48,${0.35 * dusk})`);   // 商店街は少しずつ暮れる
@@ -1126,6 +1156,7 @@
     let last = Date.now();
     const timer = setInterval(() => {
       const now = Date.now(), t = now - t0, dt = Math.min(0.1, (now - last) / 1000); last = now;
+      if (gallery) { render(); return; }
       tick(t, dt, now);
       const progress = carried ? t / total : scroll / roadLen;   // 道のりで進む（だっこは何も起きないので時間で）
       fill.style.width = Math.min(100, progress * 100) + '%';
@@ -1309,4 +1340,8 @@
   const startAt = params.get('start');   // 確認用: ?start=0 で1章から直接
   if (startAt !== null && DATA.chapters[Number(startAt)]) startChapter(Number(startAt));
   else initTitle();
+  if (params.get('gallery') === 'walk') {   // 確認用: 3章の物と誘惑を道に並べて見る（&seg=1|2|3、&zoom=1 で 3 倍の一覧）
+    if (startAt === null) startChapter(2);
+    startMinigame({ name: 'よみちさんぽ', params: { 区間: params.get('seg') || '1', gallery: params.get('zoom') === '1' ? 'zoom' : 'road' } });
+  }
 })();
