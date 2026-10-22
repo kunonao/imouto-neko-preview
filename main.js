@@ -763,7 +763,9 @@
     let msgUntil = 0;
     const say = s => { status.textContent = s; };
     const log = [];
-    const event = (s, ms) => { say(s); msgUntil = Date.now() + (ms || 1800); log.push(Math.round((Date.now() - t0) / 100) / 10 + 's ' + s); };
+    let lastTalk = '', lastTalkAt = 0, retalk = '';   // 小話が読まれる前（1.5 秒以内）に操作の合図で上書きされたら、あとでもう一度流す
+    const event = (s, ms) => { const now = Date.now(); if (lastTalk && now - lastTalkAt < 1500) retalk = lastTalk; lastTalk = ''; say(s); msgUntil = now + (ms || 1800); log.push(Math.round((now - t0) / 100) / 10 + 's ' + s); };
+    const talk = s => { event(s, 3500); lastTalk = s; lastTalkAt = Date.now(); };
     function finish(grade, extra) {
       if (done) return;
       done = true; clearInterval(timer);
@@ -782,6 +784,7 @@
     let waiting = false, ahead = false, stopUntil = 0, fastUntil = 0, cooldownUntil = 0, smileUntil = 0, cueUntil = 0, nodUntil = 0, stumbleUntil = 0, zone = '';
     let detours = 0, waits = 0, overtakes = 0, replies = 0, waited = false, inBand = 0, lastDetour = '', sameT = 0, walkT = 0, offSince = 0;
     const visited = {};   // 寄り道した相手ごと（はっけんは「行ったことがあるか」で付ける）
+    const passed = {};    // 見送った相手ごとの回数（同じ一言を繰り返さない）
     let callAt = 0, callUntil = 0, waitUntil = 0, beside = false;
     let leading = false, leadSince = 0, route = '';   // 区間2: 追い越して葵が先頭 → 分かれ道で池の道へ
     const items = [];   // { x, lane, kind, type: '物'|'誘', style: 'chase'|'touch'|'sniff', hit, over, seed, dy }
@@ -889,7 +892,8 @@
       if (carried) { scroll += 40 * dt; return; }
       const T = scroll / V.cat;   // 「道のりの時刻」。止まっている間は進まない
       const busy = !!tempt || !!playing || !!chase || !!callAt || now < stumbleUntil;
-      // 予定
+      // 予定（小話・振り返り・呼びかけは、前の表示が読まれてから。操作の合図＝道替え・よけ・速足などは待たない）
+      if (retalk && !busy && now > msgUntil) { const s2 = retalk; retalk = ''; talk(s2); }
       for (const ev of PLAN) {
         if (ev.done) continue;
         if (ev.type === 'item') {
@@ -901,15 +905,15 @@
           continue;
         }
         if (T < ev.t) continue;
-        if (ev.type === 'talk' && busy) continue;   // 判断中には流さない（少し遅らせる）
+        if ((ev.type === 'talk' || ev.type === 'glance' || ev.type === 'call') && (busy || now < msgUntil || retalk)) continue;   // 判断中・表示中には流さない（少し遅らせる）
         ev.done = true;
         if (ev.type === 'change') { akLane = ev.to; cueUntil = now + 1200; event('茜「こっちの道、行こか」'); }
-        else if (ev.type === 'talk') { if (talkI < talks.length) event(talks[talkI++], 3500); }
-        else if (ev.type === 'fast') { fastUntil = now + ev.len * 1000; event(leading ? '茜「追いつくでー」……足が速くなった' : '茜の足が、少し速くなった'); }
+        else if (ev.type === 'talk') { if (talkI < talks.length) talk(talks[talkI++]); }
+        else if (ev.type === 'fast') { fastUntil = now + ev.len * 1000; event(leading ? '茜「追いつくでー」　先頭を保つなら「ダッシュ」' : '茜の足が、少し速くなった', leading ? 2500 : 1800); }
         else if (ev.type === 'stop') { stopUntil = now + 1000; cueUntil = now + 1000; if (!waiting) event(leading ? '茜「あ、靴ひも。……先行っとって」' : '茜が、立ち止まって振り返った'); }
         else if (ev.type === 'call') { callAt = now; callUntil = now + 2000; needRelease = dashing; event(`茜「${ev.s}」`, 2000); }
         else if (ev.type === 'beside') { beside = true; cueUntil = now + 1000; event('茜が、歩幅をゆるめた。……隣に並べる', 2500); }
-        else if (ev.type === 'glance') { cueUntil = now + 900; if (lane === akLane || leading) { smileUntil = now + 1000; event('茜が振り返って、笑った'); } else event('茜が振り返って、自分の道を指さした'); }
+        else if (ev.type === 'glance') { cueUntil = now + 900; if (leading) { smileUntil = now + 1000; event('後ろから、茜が笑った'); } else if (lane === akLane) { smileUntil = now + 1000; event('茜が振り返って、笑った'); } else event('茜が振り返って、自分の道を指さした'); }
         else if (ev.type === 'fork') { if (leading) { route = 'いけ'; event('茜「……池の道？ ええよ。こっち、久しぶりや」', 3000); } else event('茜「池の道もあるけど、今日はこっちな」', 2500); }
       }
       if (callAt && now > callUntil) { callAt = 0; callUntil = 0; waited = true; waitUntil = now + 1200; event('茜「……おるな」（足元を確かめた）', 2000); }
@@ -970,7 +974,8 @@
       for (const it of items) {   // 寄らずに見送った誘惑
         if (it.type !== '誘' || it.hit || it.over || it.x >= CAT_X - 10) continue;
         it.over = true;
-        if (!tempt && !playing && !chase && !callAt) event(PASS_LINE[it.kind] || '', 1500);
+        passed[it.kind] = (passed[it.kind] || 0) + 1;
+        if (!tempt && !playing && !chase && !callAt) event(passed[it.kind] > 1 && it.kind === 'ちょう' ? '……また蝶々。塀の向こうへ飛んでいきました' : PASS_LINE[it.kind] || '', 1500);
       }
       if (playing) catSpeed = 0;
       if (chase) {   // 蝶の追いかけ: 背景も茜も止まり、猫だけ後ろへ走って、蝶が飛び去ったら戻ってくる
@@ -1031,7 +1036,7 @@
         if (!waiting && !ahead && !cool && now >= waitUntil && !calm && d >= 28 && d <= 52) inBand += dt;
         if (now > msgUntil && !waiting && !ahead && !calm) {
           const z = leading ? (d > -12 ? 'lnear' : 'lead') : d > 60 ? 'far' : d < 22 ? 'near' : (d >= 28 && d <= 52) ? 'band' : zone;
-          if (z !== zone) { zone = z; say(z === 'lead' ? '今は、私が道案内。足元は自分で見る' : z === 'lnear' ? '追いつかれそう。「ダッシュ」' : z === 'far' ? '少し離れてきた。「ダッシュ」' : z === 'near' ? '近づきすぎ。ダッシュを離す' : 'このくらいの距離で歩こう'); }
+          if (z !== zone) { zone = z; say(z === 'lead' ? '今は、私が道案内。歩くだけだと、追いつかれる' : z === 'lnear' ? '追いつかれそう。先頭を保つなら「ダッシュ」' : z === 'far' ? '少し離れてきた。「ダッシュ」' : z === 'near' ? '近づきすぎ。ダッシュを離す' : 'このくらいの距離で歩こう'); }
         }
       }
       view.now = now; view.T = T; view.akLane = akLane; view.off = lane !== akLane && !tempting; view.stumbling = stumbling; view.smile = now < smileUntil; view.cue = now < cueUntil || !!callAt; view.nod = now < nodUntil;
@@ -1044,7 +1049,7 @@
       return m.replies >= 3 && m.walk > 0 && m.same / m.walk >= 0.75 ? 'ぴったり' : 'ふつう';   // finalize() のあとに呼ぶ
     }
     const KIND_NAME = { ちょう: '蝶', はち: '葉', くさのほ: '草の穂', おちば: '落ち葉', さかなや: '魚屋' };
-    const PASS_LINE = { ちょう: '……蝶々。今日は、お姉ちゃんの道', はち: '……葉っぱが揺れてる。見送ります', くさのほ: '……草の穂。くしゃみが出そう。通り過ぎます', おちば: '……落ち葉が、転がっていきました', さかなや: '……お魚のにおい。がまん、がまん' };
+    const PASS_LINE = { ちょう: '……蝶々。今日は、お姉ちゃんの道', はち: '……葉っぱが揺れてる。見送ります', くさのほ: '……草の穂。くしゃみ、出そう',おちば: '……落ち葉が、転がっていきました', さかなや: '……お魚のにおい。がまん、がまん' };
     const flags = () => (carried ? {} : {
       よりみち: detours ? 'した' : 'なし', よりみちさき: detours ? (KIND_NAME[lastDetour] || 'なし') : 'なし',
       寄り道蝶: visited.ちょう ? 'した' : 'なし', 寄り道葉: visited.はち ? 'した' : 'なし', 寄り道草の穂: visited.くさのほ ? 'した' : 'なし', 寄り道落ち葉: visited.おちば ? 'した' : 'なし', 寄り道魚屋: visited.さかなや ? 'した' : 'なし',
