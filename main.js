@@ -18,12 +18,12 @@
     DATA.chapters.forEach(ch => ch.blocks.forEach(b => walk(b.items)));
     return names;
   })();
-  // costume: old = VOICEROID 衣装（基準。中文版も同じ）, new = A.I.VOICE2 衣装, en = English 版衣装
+  // costume: old = 中文版の衣装（基準。aivoice.jp のキャラクターページの立ち絵）, new = A.I.VOICE2 衣装, en = English 版衣装
   const settings = { size: 'm', costume: 'old' };
-  const COSTUME_LABEL = { old: '衣装: 旧（VOICEROID）', new: '衣装: 新（A.I.VOICE2）', en: '衣装: English' };
+  const COSTUME_LABEL = { old: '衣装: 中文版', new: '衣装: A.I.VOICE2', en: '衣装: English' };
   const COSTUME_NEXT = { old: 'new', new: 'en', en: 'old' };
   // 台本の「!衣装 …」と設定の値を、素材 id の接尾辞に直す
-  const COSTUME_SUFFIX = { old: '', new: '_v2', en: '_en', 旧: '', 新: '_v2', English: '_en', 英: '_en', 中文: '' };
+  const COSTUME_SUFFIX = { old: '', new: '_v2', en: '_en', 中文: '', 中文版: '', 旧: '', 新: '_v2', English: '_en', 英: '_en' };
   const params = new URLSearchParams(location.search);
   const SKIP = params.get('skip') === '1';   // 確認用: 台詞を自動で送る
   const AUTO = (params.get('play') || '').split(',').filter(Boolean);   // 確認用: コマンドを順に自動実行
