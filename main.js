@@ -30,7 +30,7 @@
     return names;
   })();
   // costume: old = 中文版の衣装（基準。aivoice.jp のキャラクターページの立ち絵）, new = A.I.VOICE2 衣装, en = English 版衣装
-  const settings = { size: 'm', costume: 'new', font: 'pixel' };   // font: pixel = PixelMplus12（ファミコン風。既定）/ std = 端末の書体。衣装の既定は A.I.VOICE2
+  const settings = { costume: 'new', font: 'pixel' };   // font: pixel = PixelMplus12（ファミコン風。既定）/ std = 端末の書体。衣装の既定は A.I.VOICE2。文字の大きさの設定は廃止（遊ぶ画面は決め打ちの大きさを倍率で縮めるので効かなかった。ユーザー判断 2026-10-23）
   const FONT_LABEL = { pixel: '文字: ファミコン風', std: '文字: 標準' };
   const FONT_NEXT = { pixel: 'std', std: 'pixel' };
   const COSTUME_LABEL = { old: '衣装: 中文版', new: '衣装: A.I.VOICE2', en: '衣装: English' };
@@ -53,7 +53,7 @@
 
   const ui = {};
   ['app', 'title', 'play', 'stage', 'stage-wrap', 'objective', 'dialog', 'd-name', 'd-text', 'd-next', 'commands', 'minigame', 'panel', 'btn-menu',
-    'menu', 'menu-panel', 'chapter-end', 'ce-title', 'ce-text', 'btn-next', 'toast', 'btn-new', 'btn-continue', 'btn-size', 'btn-font', 'btn-costume', 'btn-credits',
+    'menu', 'menu-panel', 'chapter-end', 'ce-title', 'ce-text', 'btn-next', 'toast', 'btn-new', 'btn-continue', 'btn-font', 'btn-costume', 'btn-credits',
     'card', 'card-small', 'card-label', 'card-big', 'disc', 'btn-found']
     .forEach(id => { ui[id] = $(id); });
 
@@ -80,19 +80,16 @@
   }
   function loadSettings() {
     const s = store.get(SETTINGS_KEY);
-    if (s && ['s', 'm', 'l'].includes(s.size)) settings.size = s.size;
     if (s && COSTUME_LABEL[s.costume]) settings.costume = s.costume;
     if (s && FONT_LABEL[s.font]) settings.font = s.font;
     if (s && s.font === 'dot') settings.font = 'pixel';   // 旧設定（DotGothic16）はファミコン風へ
     if (FONT_LABEL[params.get('font')]) settings.font = params.get('font');   // 確認用: ?font=dot|pixel|std
   }
-  function applySize() {
-    document.body.className = 'size-' + settings.size + (settings.font === 'std' ? ' font-std' : '');
-    ui['btn-size'].textContent = '文字の大きさ: ' + { s: '小', m: '中', l: '大' }[settings.size];
+  function applySize() {   // 設定を画面に反映する（文字種・衣装）
+    document.body.className = settings.font === 'std' ? 'font-std' : '';
     ui['btn-font'].textContent = FONT_LABEL[settings.font];
     ui['btn-costume'].textContent = COSTUME_LABEL[settings.costume];
   }
-  function cycleSize() { settings.size = { s: 'm', m: 'l', l: 's' }[settings.size]; applySize(); store.set(SETTINGS_KEY, settings); fitCanvas(); }
   function cycleFont() { settings.font = FONT_NEXT[settings.font]; applySize(); store.set(SETTINGS_KEY, settings); }
   function cycleCostume() { settings.costume = COSTUME_NEXT[settings.costume]; applySize(); store.set(SETTINGS_KEY, settings); render(); }
   // 人間の素材は衣装で id を切り替える。台本が「!衣装」で指定していればそれを優先し、なければ設定の衣装
@@ -358,7 +355,6 @@
     const p = ui['menu-panel'];
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, 'せってい'));
-    frag.appendChild(button(ui['btn-size'].textContent, function () { cycleSize(); this.textContent = ui['btn-size'].textContent; }));
     frag.appendChild(button(ui['btn-font'].textContent, function () { cycleFont(); this.textContent = ui['btn-font'].textContent; }));
     frag.appendChild(button(ui['btn-costume'].textContent, function () { cycleCostume(); this.textContent = ui['btn-costume'].textContent; }));
     frag.appendChild(button('もどる', openMenu));
@@ -1319,7 +1315,6 @@
     renderCommands();
     render();
   };
-  ui['btn-size'].onclick = cycleSize;
   ui['btn-font'].onclick = cycleFont;
   ui['btn-credits'].onclick = showCredits;
   ui['btn-costume'].onclick = cycleCostume;

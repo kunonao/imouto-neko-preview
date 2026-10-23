@@ -21,11 +21,9 @@
   --frame: #e8e4d8;
   --akane: #f48ab4;
   --aoi: #78b0e0;
-  --text: 16px;        /* 本文の設計サイズ（ドット文字の 1 倍） */
+  --text: 16px;        /* 本文の設計サイズ（ドット文字の 1 倍）。文字の大きさの設定は廃止（遊ぶ画面は倍率で縮めるので効かなかった） */
   --lh: 1.5;
 }
-body.size-s { --text: 14px; }
-body.size-l { --text: 20px; }
 
 * { box-sizing: border-box; }
 html, body {
