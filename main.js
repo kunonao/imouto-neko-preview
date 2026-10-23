@@ -569,7 +569,13 @@
     rect(112, 40, 40, 56, C.woodDark); rect(114, 42, 36, 16, C.wood); rect(114, 60, 36, 16, C.wood); rect(114, 78, 36, 16, C.wood); // 本棚
     rect(116, 46, 6, 12, C.sofa); rect(123, 44, 5, 14, '#3868a8'); rect(129, 48, 8, 10, C.yellow); rect(138, 46, 4, 12, C.white);
     rect(116, 64, 10, 12, C.white); rect(127, 62, 6, 14, C.pink); rect(134, 66, 8, 10, '#3868a8');
-    rect(176, 84, 20, 14, C.woodDark); rect(178, 86, 16, 10, C.window); rect(182, 90, 8, 4, C.pink); // 壁の写真
+    // 壁の写真: 最初の合同誌ができた日。机の端と端に茜（桃）と葵（青）、それぞれの側にマグ（茜側 = 青い月、葵側 = 赤い太陽）、真ん中に本（4章の事実に合わせる。書き込みは最小限）
+    rect(176, 84, 20, 14, C.woodDark); rect(178, 86, 16, 10, C.window);
+    rect(179, 92, 14, 1, C.wood);                                                   // 机
+    rect(180, 87, 2, 2, C.akane); rect(180, 89, 2, 3, C.sofa);                     // 茜（左）
+    rect(190, 87, 2, 2, C.aoi); rect(190, 89, 2, 3, '#3868a8');                     // 葵（右）
+    rect(183, 90, 1, 2, '#5a8ac8'); rect(188, 90, 1, 2, C.sofaDark);                // 月のマグ（茜側）・太陽のマグ（葵側）
+    rect(185, 91, 2, 1, C.white);                                                   // 二人の間の本
   }
   function drawRoomFront() {
     rect(24, 100, 112, 4, C.woodTop); rect(24, 104, 112, 36, C.wood); rect(28, 108, 36, 12, C.woodDark); rect(68, 108, 64, 12, C.woodDark);
