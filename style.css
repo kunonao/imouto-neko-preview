@@ -166,8 +166,7 @@ h2 { font-weight: normal; }
 .dialog.akokoro #d-text { color: #ffd0e0; }
 .dialog.nare #d-text { opacity: .85; }
 .dialog.hint #d-name { display: none; }                       /* ヒントは話者なし。「ヒント」の小さな見出しだけ */
-.dialog.special { border-color: #ffd080; }   /* とくべつ のはっけんの場面: 枠と話者名だけ ★ と同じ金色。本文はそのまま */
-.dialog.special #d-name { color: #ffd080; }
+.dialog.special { border-color: #ffd080; }   /* とくべつ のはっけんの場面: 枠だけ ★ と同じ金色。話者名の色（茜はピンク、葵は青）と本文はそのまま（ユーザー指定 2026-10-23） */
 .dialog.hint #d-text { opacity: .9; }
 .dialog.hint #d-text::before { content: "ヒント"; display: block; font-size: calc(13px * var(--s)); opacity: .6; }
 #d-next { position: absolute; right: calc(10px * var(--s)); bottom: calc(4px * var(--s)); font-size: calc(12px * var(--s)); animation: blink 1s infinite; }
