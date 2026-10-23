@@ -1396,13 +1396,13 @@
   if (params.get('debug') === '1') {     // 確認用: 画面の大きさを表示
     document.querySelector('.note').textContent = `画面 ${window.innerWidth}×${window.innerHeight} / 倍率 ${window.devicePixelRatio}`;
   }
-  // 確認用: ?special=4 で とくべつ4つ、?tags=くいしんぼ,ねぼすけ でその性格の反応を全部見つけたことにする（周回の記録に入れる）
-  if (params.get('special') === '4') for (let i = 0; i < 4; i++) E.runSpecial['debug.' + i] = 'x';
   (params.get('tags') || '').split(',').filter(Boolean).forEach(tag => {
     DATA.chapters.forEach((ch, ci) => ch.blocks.forEach(b => b.discoveries.forEach(d => { if ((d.tags || []).includes(tag)) E.runFound[`c${ci + 1}.${d.id}`] = d.name; })));
   });
   { const boot = loadProgress(); if (boot) { E.found = Object.assign({}, boot.found || {}); E.special = Object.assign({}, boot.special || {}); } }   // はっけんのコレクションは周回をまたいで残す（再読み込み後の「はじめから」や ?start= でも。周回の記録は つづきから のときだけ戻す）
   (params.get('found') || '').split(',').filter(Boolean).forEach(k => { E.found[k] = 'debug'; E.runFound[k] = 'debug'; });   // 確認用: ?found=c1.だっこ で前の章のはっけんを持って始める（だっこの区間など）
+  // 確認用: ?special=4 で とくべつ4つ、?tags=くいしんぼ,ねぼすけ でその性格の反応を全部見つけたことにする（周回の記録に入れる）
+  if (params.get('special') === '4') for (let i = 0; i < 4; i++) E.runSpecial['debug.' + i] = 'x';
   const startAt = params.get('start');   // 確認用: ?start=0 で1章から直接
   fitCanvas();   // タイトルの倍率（--sm）も最初に決める
   if (startAt !== null && DATA.chapters[Number(startAt)]) startChapter(Number(startAt));
