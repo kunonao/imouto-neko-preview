@@ -482,7 +482,7 @@
     const p = ui['menu-panel'];
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, '時間をえらぶ'));
-    frag.appendChild(el('p', 'note', 'もう一度たしかめたいときに。好きな時間の最初から遊べて、まだ来ていない時間も選べます。そこから先の今回の記録は戻り、あさ を選ぶと新しい周回になります。集めたはっけんは残ります。途中の時間から始めた周回は、終わり方の判定に使う記録が少なくなります'));
+    frag.appendChild(el('p', 'note', 'もう一度たしかめたいときに。好きな時間の最初から遊べます。その時間より前の時間は、今回の周回で通ったぶんだけが記録に残り、通っていなければ通っていない扱いです。その時間から先の今回の記録は消え、あさ を選ぶと新しい周回になります。集めたはっけんは残ります'));
     DATA.chapters.forEach((ch, i) => frag.appendChild(button(ch.title, () => { closeMenu(); startChapter(i); })));
     frag.appendChild(button('もどる', openMenu));
     p.replaceChildren(frag);
