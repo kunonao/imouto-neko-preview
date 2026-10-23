@@ -30,8 +30,8 @@
     return names;
   })();
   // costume: old = 中文版の衣装（基準。aivoice.jp のキャラクターページの立ち絵）, new = A.I.VOICE2 衣装, en = English 版衣装
-  const settings = { costume: 'new', font: 'pixel' };   // font: pixel = PixelMplus12（ファミコン風。既定）/ std = 端末の書体。衣装の既定は A.I.VOICE2。文字の大きさの設定は廃止（遊ぶ画面は決め打ちの大きさを倍率で縮めるので効かなかった。ユーザー判断 2026-10-23）
-  const FONT_LABEL = { pixel: '文字: ファミコン風', std: '文字: 標準' };
+  const settings = { costume: 'new', font: 'pixel' };   // font: pixel = PixelMplus12（ファミコン風。既定）/ std = OS標準（端末に入っている書体。ブラウザの既定でも初期設定でもないので、名前は「OS標準」。ユーザー決定 2026-10-24）。衣装の既定は A.I.VOICE2。文字の大きさの設定は廃止（遊ぶ画面は決め打ちの大きさを倍率で縮めるので効かなかった。ユーザー判断 2026-10-23）
+  const FONT_LABEL = { pixel: '文字: ファミコン風', std: '文字: OS標準' };
   const FONT_NEXT = { pixel: 'std', std: 'pixel' };
   const COSTUME_LABEL = { old: '衣装: Kotonoha Talk', new: '衣装: A.I.VOICE2', en: '衣装: A.I.VOICE English' };   // 製品名でそろえる（ユーザー決定 2026-10-23）。old = Kotonoha Talk DL版（A.I.VOICE 琴葉 茜・葵 中国語版）の立ち絵の衣装
   const COSTUME_NEXT = { new: 'old', old: 'en', en: 'new' };
@@ -84,7 +84,7 @@
     if (s && COSTUME_LABEL[s.costume]) settings.costume = s.costume;
     if (s && FONT_LABEL[s.font]) settings.font = s.font;
     if (s && s.font === 'dot') settings.font = 'pixel';   // 旧設定（DotGothic16）はファミコン風へ
-    if (FONT_LABEL[params.get('font')]) settings.font = params.get('font');   // 確認用: ?font=dot|pixel|std
+    if (FONT_LABEL[params.get('font')]) settings.font = params.get('font');   // 確認用: ?font=pixel|std
   }
   function applySize() {   // 設定を画面に反映する（文字種・衣装）
     document.body.className = settings.font === 'std' ? 'font-std' : '';
