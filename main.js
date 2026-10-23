@@ -33,7 +33,7 @@
   const settings = { costume: 'new', font: 'pixel' };   // font: pixel = PixelMplus12（ファミコン風。既定）/ std = 端末の書体。衣装の既定は A.I.VOICE2。文字の大きさの設定は廃止（遊ぶ画面は決め打ちの大きさを倍率で縮めるので効かなかった。ユーザー判断 2026-10-23）
   const FONT_LABEL = { pixel: '文字: ファミコン風', std: '文字: 標準' };
   const FONT_NEXT = { pixel: 'std', std: 'pixel' };
-  const COSTUME_LABEL = { old: '衣装: 中文版', new: '衣装: A.I.VOICE2', en: '衣装: English' };
+  const COSTUME_LABEL = { old: '衣装: Kotonoha Talk', new: '衣装: A.I.VOICE2', en: '衣装: A.I.VOICE English' };   // 製品名でそろえる（ユーザー決定 2026-10-23）。old = Kotonoha Talk DL版（A.I.VOICE 琴葉 茜・葵 中国語版）の立ち絵の衣装
   const COSTUME_NEXT = { new: 'old', old: 'en', en: 'new' };
   // 台本の「!衣装 …」と設定の値を、素材 id の接尾辞に直す
   const COSTUME_SUFFIX = { old: '', new: '_v2', en: '_en', 中文: '', 中文版: '', 旧: '', 新: '_v2', English: '_en', 英: '_en' };
