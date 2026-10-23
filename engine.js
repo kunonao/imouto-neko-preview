@@ -46,10 +46,10 @@
     get chapters() { return this.data.chapters; }
 
     // 章を始める。プロローグ → はじまり の順に実行待ちに積む
-    startChapter(i) {
+    startChapter(i, restart) {   // restart = 途中の章から新しい周回として始める（時間をえらぶ）
       const ch = this.chapters[i];
       if (!ch) throw new Error('章がない: ' + i);
-      if (i === 0) { this.runFound = {}; this.runSpecial = {}; this.runCleared = {}; this.runRoutes = {}; this.hints = 0; this.ending = ''; this.runAt = {}; }   // 新しい周回
+      if (i === 0 || restart) { this.runFound = {}; this.runSpecial = {}; this.runCleared = {}; this.runRoutes = {}; this.hints = 0; this.ending = ''; this.runAt = {}; }   // 新しい周回（あさ から、または 時間をえらぶ で途中から。前の章は通っていない扱い）
       else if (this.runAt[i]) { this.setRun(copyRun(this.runAt[i])); for (const k of Object.keys(this.runAt)) if (Number(k) > i) delete this.runAt[k]; }   // 章をえらび直した: その章を始めた時点へ巻き戻し、それより後の章の記録は捨てる（やり直しの成果を次章で上書きしない）
       this.runAt[i] = copyRun(this.getRun());
       this.chapterIndex = i;

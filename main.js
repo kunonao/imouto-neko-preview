@@ -155,9 +155,9 @@
     showScreen('title');
   }
 
-  function startChapter(i) {
+  function startChapter(i, restart) {   // restart = 時間をえらぶ から: そこから新しい周回（前の時間は通っていない扱い）
     stopGame();
-    E.startChapter(i);
+    E.startChapter(i, restart);
     // 終章: 条件を満たしたエンディングが複数あれば、どれにするか選んでもらう
     const cands = E.chapter.candidates && E.chapter.candidates.length ? E.candidates() : [];
     if (cands.length > 1) { showEndingPicker(cands, name => { E.state.えらんだ = name; enterPlay(); step(); }); return; }
@@ -426,7 +426,7 @@
     frag.appendChild(el('p', 'note', `集めた数 ${c.found} / ${c.total}　とくべつ ${c.special} / ${c.specialTotal}　この周回で ${c.run}`));   // 上の帯は今回の周回の数。ここは以前を含む
     frag.appendChild(legend());
     const ul = el('ul', 'two');   // 26 件を 2 列で（板の高さに収める）
-    { const most = Math.max(...DATA.chapters.map((_, i) => { const c = E.counts(i); return c.total + c.specialTotal; })); ul.style.minHeight = `${Math.ceil(most / 2) * 1.3}em`; }   // 章を切り替えても板の高さが変わらないよう、いちばん多い章の行数ぶんを確保
+    const most = Math.max(...DATA.chapters.map((_, i) => { const c = E.counts(i); return c.total + c.specialTotal; }));   // いちばん多い章の件数
     const box = hintBox();
     E.discoveryList(ci).forEach(d => {   // 今回の周回で見つけた / 以前だけ（薄く）/ まだ
       const cls = !d.name ? 'todo' : ((d.run ? '' : 'past ') + (d.special ? 'special' : '')).trim();
@@ -434,6 +434,7 @@
       if (d.name) pickable(li, box, [`${ci + 1}章`, d.where, d.auto, d.hint].filter(Boolean).join('　'));   // 自動（章＋コマンド＋場面）＋ 手書きの補足
       ul.appendChild(li);
     });
+    for (let k = E.discoveryList(ci).length; k < most; k++) ul.appendChild(el('li', 'todo pad', '？？？'));   // 空の行で埋めて、章を切り替えても列の形と上下の余白を同じにする
     frag.appendChild(ul);
     frag.appendChild(el('p', 'note', '★ は姉妹の思い出（各章に 1 つ）。同じ周回で 4 つそろうと、いつもと違う朝になるかも'));
     frag.appendChild(box);
@@ -482,8 +483,8 @@
     const p = ui['menu-panel'];
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, '時間をえらぶ'));
-    frag.appendChild(el('p', 'note', 'もう一度たしかめたいときに。好きな時間の最初から遊べます。その時間より前の時間は、今回の周回で通ったぶんだけが記録に残り、通っていなければ通っていない扱いです。その時間から先の今回の記録は消え、あさ を選ぶと新しい周回になります。集めたはっけんは残ります'));
-    DATA.chapters.forEach((ch, i) => frag.appendChild(button(ch.title, () => { closeMenu(); startChapter(i); })));
+    frag.appendChild(el('p', 'note', 'もう一度たしかめたいときに。好きな時間の最初から、新しい周回として遊べます。選んだ時間から先を遊んだぶんが今回の記録になり、それより前の時間は通っていない扱いです。集めたはっけんは残ります'));
+    DATA.chapters.forEach((ch, i) => frag.appendChild(button(ch.title, () => { closeMenu(); startChapter(i, true); })));
     frag.appendChild(button('もどる', openMenu));
     p.replaceChildren(frag);
   }
