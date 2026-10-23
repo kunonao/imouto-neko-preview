@@ -774,9 +774,10 @@
     const meow = el('button', 'big', 'なく');   // 区間3: 返事はダッシュと別のボタン（兼用しない。ユーザー要望 2026-10-23）
     const left = el('div', 'col'), right = el('div', 'col');
     right.append(up, down);
-    if (F.dash) left.appendChild(act);
+    if (F.dash && !carried) left.appendChild(act);   // だっこ中はダッシュなし
     if (F.calls) left.appendChild(meow);
-    if (!carried) bottom.append(left, skipBtn, right); else bottom.appendChild(skipBtn);
+    if (carried) { left.appendChild(meow); bottom.append(left, skipBtn, el('div', 'col')); }   // だっこ: 鳴くだけ（何もしなくてもいい）
+    else bottom.append(left, skipBtn, right);
 
     // ── 状態 ──
     let lane = 1, laneY = LANES[1], akLane = 1, akY = LANES[1];
@@ -800,6 +801,7 @@
       3: ['茜「葵、ここのコロッケ好きやねん」', '茜「おばちゃん、葵にいっつもおまけしてくれんねん」', '茜「……この時間、店じまい早いなぁ」'],
     }[seg] || [];
     const talks = TALK.slice(0, 3);
+    const CARRY_TALK = [{ t: 3, s: '茜「軽いなぁ。ちゃんと食べとるん？」' }, { t: 9, s: '茜「……あったかいな、あんた」' }, { t: 15, s: '茜「もうちょいで商店街や。じっとしとき」' }];   // だっこ（20 秒）
     const PLAN = {
       // 道: 0 = 奥, 1 = 中, 2 = 手前。障害（物）は茜の道に出す（茜が先によけて戻る）。誘惑は茜の道から 2 本離れた端に出す
       1: [ // 60 秒 = 導入 10 ＋ 中盤 40 ＋ 終盤 10。茜は 中 → 手前 → 奥
@@ -876,10 +878,19 @@
       callAt = 0; callUntil = 0;
     };
     act.onpointerdown = e => { e.preventDefault(); act.setPointerCapture(e.pointerId); dashing = true; };
-    meow.onpointerdown = e => { e.preventDefault(); if (callAt) answer(); else if (Date.now() > msgUntil) event('にゃ。……茜「ん？ どないしたん」', 1500); };   // 呼ばれていないときに鳴いても、何も起きない（茜が振り向くだけ）
+    let meows = 0;
+    const CARRY_REPLY = ['にゃー。……茜「はいはい」', 'にゃー。……茜「なんや、ご機嫌やな」', 'にゃー。……茜「落とさへんから、安心し」', 'にゃー。……茜「……うん。うちもや」'];
+    const meowAct = () => {
+      if (done) return;
+      const now = Date.now();
+      if (carried) { if (now > msgUntil) { event(CARRY_REPLY[Math.min(meows, CARRY_REPLY.length - 1)], 1800); meows++; } }   // だっこ中: 鳴くたびに茜が返す（4 回目からは同じ）
+      else if (callAt) answer();
+      else if (now > msgUntil) event('にゃ。……茜「ん？ どないしたん」', 1500);   // 呼ばれていないときに鳴いても、何も起きない（茜が振り向くだけ）
+    };
+    meow.onpointerdown = e => { e.preventDefault(); meowAct(); };
     act.onpointerup = act.onpointercancel = () => { dashing = false; needRelease = false; };
 
-    title.textContent = carried ? '抱っこで進む。何もしなくていい'
+    title.textContent = carried ? '腕の中。何もしなくていい。鳴いてもいい（なく）'
       : seg === 1 ? '住宅街。目標: お姉ちゃんと同じ道で、後ろを歩く（▲▼）'
       : seg === 2 ? '公園。目標: 同じ道を歩く。ダッシュで先頭にもなれる'
       : '商店街。目標: 同じ道で、呼ばれたら「なく」';
@@ -920,7 +931,12 @@
       for (const it of items) if (it.path && it.lane === akLane && !it.akHit && Math.abs(akY - LANES[akLane]) < 4 && it.x < akX + 5 && it.x + 12 > akX - 5) { it.akHit = true; akHits++; log.push(Math.round((now - t0) / 100) / 10 + 's （茜が物に重なった: ' + it.kind + '）'); }
     }
     function tick(t, dt, now) {
-      if (carried) { scroll += 40 * dt; return; }
+      if (carried) {
+        scroll += 40 * dt;
+        for (const c of CARRY_TALK) if (!c.done && t >= c.t * 1000 && now > msgUntil) { c.done = true; event(c.s, 3000); }
+        if (BOT && BOT !== 'idle' && !view.meowed && t > 5000 && now > msgUntil) { view.meowed = true; meowAct(); }   // bot: 一度だけ鳴く
+        return;
+      }
       const T = scroll / V.cat;   // 「道のりの時刻」。止まっている間は進まない
       const busy = !!tempt || !!playing || !!chase || !!callAt || now < stumbleUntil;
       // 予定（小話・振り返り・呼びかけは、前の表示が読まれてから。操作の合図＝道替え・よけ・速足などは待たない）
@@ -1085,7 +1101,7 @@
     }
     const KIND_NAME = { ちょう: '蝶', はち: '葉', くさのほ: '草の穂', おちば: '落ち葉', さかなや: '魚屋' };
     const PASS_LINE = { ちょう: '……蝶々。今日は、お姉ちゃんの道', はち: '……葉っぱが揺れてる。見送ります', くさのほ: '……草の穂。くしゃみ、出そう',おちば: '……落ち葉が、転がっていきました', さかなや: '……お魚のにおい。がまん、がまん' };
-    const flags = () => (carried ? {} : {
+    const flags = () => (carried ? { なきごえ: meows ? 'あり' : 'なし' } : {
       よりみち: detours ? 'した' : 'なし', よりみちさき: detours ? (KIND_NAME[lastDetour] || 'なし') : 'なし',
       寄り道蝶: visited.ちょう ? 'した' : 'なし', 寄り道葉: visited.はち ? 'した' : 'なし', 寄り道草の穂: visited.くさのほ ? 'した' : 'なし', 寄り道落ち葉: visited.おちば ? 'した' : 'なし', 寄り道魚屋: visited.さかなや ? 'した' : 'なし',
       よりみちけい: walkMemo.detours ? 'した' : 'なし',   // 3 区間を通して寄り道があったか（finalize のあと）
@@ -1201,7 +1217,7 @@
         if (e.key === 'ArrowUp' || e.key === 'w') move(-1);
         else if (e.key === 'ArrowDown' || e.key === 's') move(1);
         else if (F.dash && e.key === ' ' && !e.repeat) dashing = true;
-        else if (F.calls && e.key === 'Enter' && !e.repeat && callAt) answer();
+        else if ((F.calls || carried) && e.key === 'Enter' && !e.repeat) meowAct();
       },
       keyup: e => { if (e.key === ' ') { dashing = false; needRelease = false; } },
       draw,
@@ -1365,6 +1381,7 @@
   (params.get('tags') || '').split(',').filter(Boolean).forEach(tag => {
     DATA.chapters.forEach((ch, ci) => ch.blocks.forEach(b => b.discoveries.forEach(d => { if ((d.tags || []).includes(tag)) E.runFound[`c${ci + 1}.${d.id}`] = d.name; })));
   });
+  (params.get('found') || '').split(',').filter(Boolean).forEach(k => { E.found[k] = 'debug'; E.runFound[k] = 'debug'; });   // 確認用: ?found=c1.だっこ で前の章のはっけんを持って始める（だっこの区間など）
   const startAt = params.get('start');   // 確認用: ?start=0 で1章から直接
   if (startAt !== null && DATA.chapters[Number(startAt)]) startChapter(Number(startAt));
   else initTitle();
