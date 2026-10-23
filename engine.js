@@ -29,6 +29,7 @@
       this.runFound = {}; // この周回で見つけたもの（エンディングの判定に使う。1章を始めると空になる）
       this.runSpecial = {};
       this.runCleared = {}; // この周回でクリアした章
+      this.runRoutes = {};  // この周回の章ごとのルート（章番号 -> ルート名。おもいで で「今回」と「前の周回」を分ける）
       this.hints = 0;     // この周回でヒントを見た回数
       this.ending = '';   // 到達したエンディング名（!エンド）
       this.runAt = {};    // 章を始めた時点の周回の記録（章をえらび直したとき、そこへ巻き戻す）
@@ -48,7 +49,7 @@
     startChapter(i) {
       const ch = this.chapters[i];
       if (!ch) throw new Error('章がない: ' + i);
-      if (i === 0) { this.runFound = {}; this.runSpecial = {}; this.runCleared = {}; this.hints = 0; this.ending = ''; this.runAt = {}; }   // 新しい周回
+      if (i === 0) { this.runFound = {}; this.runSpecial = {}; this.runCleared = {}; this.runRoutes = {}; this.hints = 0; this.ending = ''; this.runAt = {}; }   // 新しい周回
       else if (this.runAt[i]) this.setRun(copyRun(this.runAt[i]));   // 章をえらび直した: その章を始めた時点へ巻き戻す
       this.runAt[i] = copyRun(this.getRun());
       this.chapterIndex = i;
@@ -70,8 +71,8 @@
     // ミニゲームの分岐の中で宣言されたはっけんは、その結果が出たときに付ける
     enter(block) { this.pending.push(...block.discoveries.filter(d => !d.branch && !d.inline)); return block.items.slice(); }
 
-    getRun() { return { runFound: this.runFound, runSpecial: this.runSpecial, runCleared: this.runCleared, hints: this.hints, ending: this.ending }; }
-    setRun(r) { this.runFound = r.runFound || {}; this.runSpecial = r.runSpecial || {}; this.runCleared = r.runCleared || {}; this.hints = Number(r.hints) || 0; this.ending = r.ending || ''; }
+    getRun() { return { runFound: this.runFound, runSpecial: this.runSpecial, runCleared: this.runCleared, runRoutes: this.runRoutes, hints: this.hints, ending: this.ending }; }
+    setRun(r) { this.runFound = r.runFound || {}; this.runSpecial = r.runSpecial || {}; this.runCleared = r.runCleared || {}; this.runRoutes = r.runRoutes || {}; this.hints = Number(r.hints) || 0; this.ending = r.ending || ''; }
 
     // エンディング判定用の状態（とくべつ / ネコ / トップ.◯◯ / かず.◯◯ / ヒント / すなお / かしこい / 完走 / ふつう）
     endingState() {
@@ -230,6 +231,7 @@
       const all = this.chapter.blocks.flatMap(b => b.discoveries).filter(d => !ids.has(d.id) && ids.add(d.id));
       return {
         found: Object.keys(this.found).filter(k => k.startsWith(pre)).length,
+        run: Object.keys(this.runFound).filter(k => k.startsWith(pre)).length,   // この周回で見つけた数
         total: all.filter(d => !d.special).length,
         special: Object.keys(this.special).filter(k => k.startsWith(pre)).length,
         specialTotal: all.filter(d => d.special).length,
@@ -245,21 +247,21 @@
         if (seen.has(d.id)) continue;
         seen.add(d.id);
         const got = (d.special ? this.special : this.found)[pre + d.id];
-        list.push({ id: d.id, name: got ? d.name : null, special: d.special });
+        list.push({ id: d.id, name: got ? d.name : null, special: d.special, run: !!(d.special ? this.runSpecial : this.runFound)[pre + d.id] });   // run = この周回で見つけた
       }
       return list;
     }
 
     snapshot() {
       return { v: 1, chapterIndex: this.chapterIndex, state: this.state, visual: this.visual, found: this.found, special: this.special,
-        runFound: this.runFound, runSpecial: this.runSpecial, runCleared: this.runCleared, hints: this.hints, ending: this.ending, runAt: this.runAt };
+        runFound: this.runFound, runSpecial: this.runSpecial, runCleared: this.runCleared, runRoutes: this.runRoutes, hints: this.hints, ending: this.ending, runAt: this.runAt };
     }
 
     // コレクションと周回の記録を戻す（章の頭から始めるとき用）
     restoreRun(snap) {
       this.found = Object.assign({}, snap.found || {});
       this.special = Object.assign({}, snap.special || {});
-      this.setRun(copyRun({ runFound: snap.runFound, runSpecial: snap.runSpecial, runCleared: snap.runCleared, hints: snap.hints, ending: snap.ending }));
+      this.setRun(copyRun({ runFound: snap.runFound, runSpecial: snap.runSpecial, runCleared: snap.runCleared, runRoutes: snap.runRoutes, hints: snap.hints, ending: snap.ending }));
       this.runAt = copyRun(snap.runAt || {});
     }
 

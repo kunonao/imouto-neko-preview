@@ -65,7 +65,7 @@
   function saveProgress() { store.set(SAVE_KEY, { snap: E.snapshot() }); }
   function saveFreshChapter(i) {
     const s = E.snapshot();
-    store.set(SAVE_KEY, { snap: { v: 1, chapterIndex: i, fresh: true, found: s.found, special: s.special, runFound: s.runFound, runSpecial: s.runSpecial, runCleared: s.runCleared, hints: s.hints, runAt: s.runAt } });
+    store.set(SAVE_KEY, { snap: { v: 1, chapterIndex: i, fresh: true, found: s.found, special: s.special, runFound: s.runFound, runSpecial: s.runSpecial, runCleared: s.runCleared, runRoutes: s.runRoutes, hints: s.hints, runAt: s.runAt } });
   }
   function seenEndings() { const a = store.get(ENDINGS_KEY); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; }
   function rememberEnding(name) { const a = seenEndings(); if (name && !a.includes(name)) { a.push(name); store.set(ENDINGS_KEY, a); } }
@@ -258,7 +258,7 @@
     if (hasNext) {
       const c = E.counts();
       const route = E.state.ルート && E.state.ルート !== 'なし' ? E.state.ルート : '';
-      if (route) rememberRoute(E.chapterIndex, route);
+      if (route) { rememberRoute(E.chapterIndex, route); E.runRoutes[E.chapterIndex] = route; }
       ui['ce-title'].textContent = E.chapter.title + '　クリア';
       // ここでは「どのルートだったか」だけ示す（何通りあるか・集まり具合はメニューの「エンディング」で）
       ui['ce-text'].textContent = (route ? `ルート「${route}」\n\n` : '') +
@@ -368,11 +368,11 @@
     const routesSeen = seenRoutes(), totalRoutes = ROUTES.reduce((n, r) => n + r.length, 0);
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, `ルート ${routesSeen.length} / ${totalRoutes}`));
-    frag.appendChild(el('p', 'note', '章のクリアのしかた。見つけたものだけ名前が出ます'));
+    frag.appendChild(el('p', 'note', '章のクリアのしかた。見つけたものだけ名前が出ます。「（前の周回）」は、前に通ったもの'));
     DATA.chapters.forEach((ch, ci) => {
       if (!ROUTES[ci].length) return;
       const ul = el('ul');
-      ROUTES[ci].forEach(n => { const ok = routesSeen.includes(`${ci + 1}:${n}`); ul.appendChild(el('li', ok ? '' : 'todo', ok ? n : '？？？')); });
+      ROUTES[ci].forEach(n => { const ok = routesSeen.includes(`${ci + 1}:${n}`), now = E.runRoutes[ci] === n; ul.appendChild(el('li', !ok ? 'todo' : now ? '' : 'past', !ok ? '？？？' : n + (now ? '' : '（前の周回）'))); });
       frag.appendChild(el('p', 'small', ch.title));
       frag.appendChild(ul);
     });
@@ -384,9 +384,11 @@
     const c = E.counts();
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, `はっけん ${c.found} / ${c.total}　とくべつ ${c.special} / ${c.specialTotal}`));
+    frag.appendChild(el('p', 'note', `この周回で ${c.run}。「（前の周回）」は、前に見つけたもの`));
     const ul = el('ul');
-    E.discoveryList().forEach(d => {
-      const li = el('li', d.name ? (d.special ? 'special' : '') : 'todo', d.name ? (d.special ? '★ ' : '') + d.name : '？？？');
+    E.discoveryList().forEach(d => {   // 今回の周回で見つけた / 前の周回だけ（薄く）/ まだ
+      const cls = !d.name ? 'todo' : ((d.run ? '' : 'past ') + (d.special ? 'special' : '')).trim();
+      const li = el('li', cls, d.name ? (d.special ? '★ ' : '') + d.name + (d.run ? '' : '（前の周回）') : '？？？');
       ul.appendChild(li);
     });
     frag.appendChild(ul);
@@ -399,9 +401,9 @@
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, `エンディング ${seen.length} / ${ENDINGS.length}`));
     const ul = el('ul');
-    ENDINGS.forEach(n => ul.appendChild(el('li', seen.includes(n) ? '' : 'todo', seen.includes(n) ? n : '？？？')));
+    ENDINGS.forEach(n => { const ok = seen.includes(n), now = E.ending === n; ul.appendChild(el('li', !ok ? 'todo' : now ? '' : 'past', !ok ? '？？？' : n + (now ? '' : '（前の周回）'))); });   // 今回の周回で着いたものだけ濃く
     frag.appendChild(ul);
-    frag.appendChild(el('p', 'note', '一日の過ごし方（よく食べた、よく甘えた、など）で変わります。条件を満たした終わり方が複数あれば、終章の前に選べます'));
+    frag.appendChild(el('p', 'note', '一日の過ごし方（よく食べた、よく甘えた、など）で変わります。条件を満たした終わり方が複数あれば、終章の前に選べます。「（前の周回）」は、前に見たもの'));
     frag.appendChild(button('もどる', showMemories));
     p.replaceChildren(frag);
   }
@@ -1389,6 +1391,7 @@
   (params.get('tags') || '').split(',').filter(Boolean).forEach(tag => {
     DATA.chapters.forEach((ch, ci) => ch.blocks.forEach(b => b.discoveries.forEach(d => { if ((d.tags || []).includes(tag)) E.runFound[`c${ci + 1}.${d.id}`] = d.name; })));
   });
+  { const boot = loadProgress(); if (boot) { E.found = Object.assign({}, boot.found || {}); E.special = Object.assign({}, boot.special || {}); } }   // はっけんのコレクションは周回をまたいで残す（再読み込み後の「はじめから」や ?start= でも。周回の記録は つづきから のときだけ戻す）
   (params.get('found') || '').split(',').filter(Boolean).forEach(k => { E.found[k] = 'debug'; E.runFound[k] = 'debug'; });   // 確認用: ?found=c1.だっこ で前の章のはっけんを持って始める（だっこの区間など）
   const startAt = params.get('start');   // 確認用: ?start=0 で1章から直接
   if (startAt !== null && DATA.chapters[Number(startAt)]) startChapter(Number(startAt));

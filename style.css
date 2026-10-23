@@ -232,6 +232,7 @@ h2 { font-weight: normal; }
 .panel h2 { margin: 0 0 4px; font-size: 20px; }
 .panel ul { margin: 0; padding-left: 1.4em; }
 .panel li.todo { opacity: .5; }
+.panel li.past { opacity: .65; }   /* 前の周回で見たもの（今回の周回のものより薄く） */
 .panel li.special { color: #ffd080; }
 .panel button { min-height: 44px; }
 .panel a { color: var(--aoi); }
