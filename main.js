@@ -372,7 +372,7 @@
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, 'おもいで'));
     // 小さいものから大きいものへ: はっけん（場面） → ルート（章） → エンディング（一日）。ユーザー指定 2026-10-23
-    frag.appendChild(button(`はっけん　${t.found} / ${t.total}　★ ${t.special} / ${t.specialTotal}`, () => showFound()));
+    frag.appendChild(button(`はっけん　${t.found} / ${t.total}　★ ${t.special} / ${t.specialTotal}`, () => showFound(E.chapter ? E.chapterIndex : 0)));   // 開くときは必ず今の章
     frag.appendChild(button(`クリアルート　${routesSeen.length} / ${totalRoutes}`, showRoutes));
     frag.appendChild(button(`エンディング　${seen.length} / ${ENDINGS.length}`, showEndings));
     frag.appendChild(mode === 'title' ? button('とじる', closeMenu) : button('もどる', openMenu));   // タイトルからは とじる
@@ -414,10 +414,8 @@
     frag.appendChild(button('もどる', showMemories));
     p.replaceChildren(frag);
   }
-  let foundView = null;   // おもいで の はっけん で見ている章（進行は変えない）
-  function showFound(ci) {
-    if (typeof ci !== 'number') ci = foundView != null ? foundView : (E.chapter ? E.chapterIndex : 0);
-    foundView = ci;
+  function showFound(ci) {   // ci = 見る章（タブで切り替え。進行は変えない）
+    if (typeof ci !== 'number') ci = E.chapter ? E.chapterIndex : 0;
     const p = ui['menu-panel'];
     const c = E.counts(ci);
     const frag = document.createDocumentFragment();
@@ -428,11 +426,12 @@
     frag.appendChild(el('p', 'note', `集めた数 ${c.found} / ${c.total}　とくべつ ${c.special} / ${c.specialTotal}　この周回で ${c.run}`));   // 上の帯は今回の周回の数。ここは以前を含む
     frag.appendChild(legend());
     const ul = el('ul', 'two');   // 26 件を 2 列で（板の高さに収める）
+    { const most = Math.max(...DATA.chapters.map((_, i) => { const c = E.counts(i); return c.total + c.specialTotal; })); ul.style.minHeight = `${Math.ceil(most / 2) * 1.3}em`; }   // 章を切り替えても板の高さが変わらないよう、いちばん多い章の行数ぶんを確保
     const box = hintBox();
     E.discoveryList(ci).forEach(d => {   // 今回の周回で見つけた / 以前だけ（薄く）/ まだ
       const cls = !d.name ? 'todo' : ((d.run ? '' : 'past ') + (d.special ? 'special' : '')).trim();
       const li = el('li', cls, d.name ? (d.special ? '★ ' : '') + d.name : '？？？');
-      if (d.name) pickable(li, box, [`${ci + 1}章`, d.where, d.hint].filter(Boolean).join('　'));   // 自動（章＋コマンド）＋ 手書きの補足
+      if (d.name) pickable(li, box, [`${ci + 1}章`, d.where, d.auto, d.hint].filter(Boolean).join('　'));   // 自動（章＋コマンド＋場面）＋ 手書きの補足
       ul.appendChild(li);
     });
     frag.appendChild(ul);

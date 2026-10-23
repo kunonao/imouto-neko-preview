@@ -253,7 +253,7 @@
         if (seen.has(d.id)) continue;
         seen.add(d.id);
         const got = (d.special ? this.special : this.found)[pre + d.id];
-        list.push({ id: d.id, name: got ? d.name : null, special: d.special, run: !!(d.special ? this.runSpecial : this.runFound)[pre + d.id], where: d.where, hint: d.hint });   // run = この周回で見つけた。where/hint = 思い出すヒント
+        list.push({ id: d.id, name: got ? d.name : null, special: d.special, run: !!(d.special ? this.runSpecial : this.runFound)[pre + d.id], where: d.where, auto: d.auto, hint: d.hint });   // run = この周回で見つけた。where/hint = 思い出すヒント
       }
       return list;
     }
