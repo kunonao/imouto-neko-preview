@@ -455,9 +455,9 @@
       ul.appendChild(li);
     });   // 今回の周回で着いたものだけ濃く
     frag.appendChild(ul);
-    frag.appendChild(box);
     frag.appendChild(legend());
     frag.appendChild(el('p', 'note', '一日の過ごし方（よく食べた、よく甘えた、など）で変わります。条件を満たした終わり方が複数あれば、終章の前に選べます'));
+    frag.appendChild(box);   // ヒント欄はいちばん下（他の一覧と同じ）
     frag.appendChild(button('もどる', showMemories));
     p.replaceChildren(frag);
   }
