@@ -346,6 +346,11 @@
     ui.menu.classList.remove('hidden');
   }
   function closeMenu() { ui.menu.classList.add('hidden'); }
+  function legend(prefix) {   // おもいで の凡例: ■ 今回の周回 ／ □ 前の周回 ／ ？？？ まだ（文字の接尾ではなく印にする。2 列の一覧で折り返さないように）
+    const p = el('p', 'note'); if (prefix) p.append(prefix);
+    p.append(el('span', 'key', '今回の周回'), '　', el('span', 'key past', '前の周回'), '　？？？ まだ');
+    return p;
+  }
   function showMemories() {
     const p = ui['menu-panel'];
     const c = E.counts(), seen = seenEndings(), routesSeen = seenRoutes(), totalRoutes = ROUTES.reduce((n, r) => n + r.length, 0);
@@ -374,11 +379,11 @@
     const routesSeen = seenRoutes(), totalRoutes = ROUTES.reduce((n, r) => n + r.length, 0);
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, `ルート ${routesSeen.length} / ${totalRoutes}`));
-    frag.appendChild(el('p', 'note', '章のクリアのしかた。見つけたものだけ名前が出ます。「（前の周回）」は、前に通ったもの'));
+    frag.appendChild(legend('章のクリアのしかた　'));
     DATA.chapters.forEach((ch, ci) => {
       if (!ROUTES[ci].length) return;
       const ul = el('ul');
-      ROUTES[ci].forEach(n => { const ok = routesSeen.includes(`${ci + 1}:${n}`), now = E.runRoutes[ci] === n; ul.appendChild(el('li', !ok ? 'todo' : now ? '' : 'past', !ok ? '？？？' : n + (now ? '' : '（前の周回）'))); });
+      ROUTES[ci].forEach(n => { const ok = routesSeen.includes(`${ci + 1}:${n}`), now = E.runRoutes[ci] === n; ul.appendChild(el('li', !ok ? 'todo' : now ? '' : 'past', !ok ? '？？？' : n)); });
       frag.appendChild(el('p', 'small', ch.title));
       frag.appendChild(ul);
     });
@@ -390,11 +395,11 @@
     const c = E.counts();
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, `はっけん ${c.found} / ${c.total}　とくべつ ${c.special} / ${c.specialTotal}`));
-    frag.appendChild(el('p', 'note', `この周回で ${c.run}。「（前の周回）」は、前に見つけたもの`));
+    frag.appendChild(legend(`この周回で ${c.run}　`));
     const ul = el('ul', 'two');   // 26 件を 2 列で（板の高さに収める）
     E.discoveryList().forEach(d => {   // 今回の周回で見つけた / 前の周回だけ（薄く）/ まだ
       const cls = !d.name ? 'todo' : ((d.run ? '' : 'past ') + (d.special ? 'special' : '')).trim();
-      const li = el('li', cls, d.name ? (d.special ? '★ ' : '') + d.name + (d.run ? '' : '（前の周回）') : '？？？');
+      const li = el('li', cls, d.name ? (d.special ? '★ ' : '') + d.name : '？？？');
       ul.appendChild(li);
     });
     frag.appendChild(ul);
@@ -407,9 +412,10 @@
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, `エンディング ${seen.length} / ${ENDINGS.length}`));
     const ul = el('ul');
-    ENDINGS.forEach(n => { const ok = seen.includes(n), now = E.ending === n; ul.appendChild(el('li', !ok ? 'todo' : now ? '' : 'past', !ok ? '？？？' : n + (now ? '' : '（前の周回）'))); });   // 今回の周回で着いたものだけ濃く
+    ENDINGS.forEach(n => { const ok = seen.includes(n), now = E.ending === n; ul.appendChild(el('li', !ok ? 'todo' : now ? '' : 'past', !ok ? '？？？' : n)); });   // 今回の周回で着いたものだけ濃く
     frag.appendChild(ul);
-    frag.appendChild(el('p', 'note', '一日の過ごし方（よく食べた、よく甘えた、など）で変わります。条件を満たした終わり方が複数あれば、終章の前に選べます。「（前の周回）」は、前に見たもの'));
+    frag.appendChild(legend());
+    frag.appendChild(el('p', 'note', '一日の過ごし方（よく食べた、よく甘えた、など）で変わります。条件を満たした終わり方が複数あれば、終章の前に選べます'));
     frag.appendChild(button('もどる', showMemories));
     p.replaceChildren(frag);
   }

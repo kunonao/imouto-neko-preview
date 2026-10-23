@@ -235,8 +235,12 @@ h2 { font-weight: normal; }
   font-size: calc(15px * var(--sm)); line-height: 1.4;
 }
 .panel h2 { margin: 0 0 calc(4px * var(--sm)); font-size: calc(20px * var(--sm)); }
-.panel ul { margin: 0; padding-left: 1.3em; font-size: calc(13px * var(--sm)); }
-.panel ul.two { columns: 2; column-gap: calc(12px * var(--sm)); }   /* はっけん の一覧（26 件）は 2 列で収める */
+.panel ul { margin: 0; padding-left: 0; list-style: none; font-size: calc(13px * var(--sm)); }
+/* 一覧の印: ■ = 今回の周回、□ = 前の周回、まだ = 印なし（文字で「（前の周回）」と書くと 2 列の一覧で折り返す） */
+.panel li::before, .panel .key::before { content: ''; display: inline-block; width: .55em; height: .55em; margin-right: .4em; background: currentColor; vertical-align: .05em; }
+.panel li.past::before, .panel .key.past::before { background: transparent; box-shadow: inset 0 0 0 1px currentColor; }
+.panel li.todo::before { visibility: hidden; }
+.panel ul.two { columns: 2; column-gap: calc(8px * var(--sm)); font-size: calc(11.5px * var(--sm)); line-height: 1.3; }   /* はっけん の一覧（26 件）は 2 列。名前は最長 12 字なので一回り小さくして 1 行に収める */
 .panel li { break-inside: avoid; }
 .panel li.todo { opacity: .5; }
 .panel li.past { opacity: .65; }   /* 前の周回で見たもの（今回の周回のものより薄く） */
