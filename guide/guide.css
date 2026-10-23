@@ -1,0 +1,210 @@
+/* 妹はネコ 攻略ページ（茜のブログという設定。2000年代の個人ブログ風） */
+:root {
+  --pink: #e0577f;
+  --pink-d: #c2185b;
+  --pink-l: #fbd3e0;
+  --pink-ll: #fff4f8;
+  --blue: #3d7cc0;
+  --blue-l: #eef6ff;
+  --ink: #333;
+  --link: #0033cc;
+  --visited: #800080;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  color: var(--ink);
+  background-color: #fde8ef;
+  background-image:
+    radial-gradient(#fff 22%, transparent 23%),
+    radial-gradient(#fff 22%, transparent 23%);
+  background-size: 18px 18px;
+  background-position: 0 0, 9px 9px;
+  font-family: "MS PGothic", "ＭＳ Ｐゴシック", "Hiragino Kaku Gothic ProN", "Osaka", "Meiryo", sans-serif;
+  font-size: 15px;
+  line-height: 1.85;
+  -webkit-text-size-adjust: 100%;
+}
+a { color: var(--link); }
+a:visited { color: var(--visited); }
+a:hover { color: #ff3366; }
+img { max-width: 100%; }
+
+#wrap {
+  max-width: 900px;
+  margin: 12px auto;
+  background: #fff;
+  border: 1px solid #e3a0b5;
+  box-shadow: 0 0 0 4px #fff, 0 0 0 5px #e3a0b5;
+}
+
+/* ヘッダ */
+#head {
+  padding: 18px 16px 0;
+  background: linear-gradient(#ffe3ec, #fff);
+  border-bottom: 3px double var(--pink);
+  text-align: center;
+}
+.blog-title { margin: 0; font-size: 32px; font-weight: bold; letter-spacing: .08em; line-height: 1.3; }
+.blog-title a, .blog-title a:visited { color: var(--pink-d); text-decoration: none; text-shadow: 2px 2px 0 #fff, 3px 3px 0 #f6b3c8; }
+.blog-sub { margin: 4px 0 10px; font-size: 13px; color: #a05570; }
+.ticker { overflow: hidden; white-space: nowrap; background: #fff0f5; border-top: 1px dotted var(--pink); font-size: 13px; color: var(--pink-d); margin: 0 -16px; padding: 3px 0; }
+.ticker span { display: inline-block; padding-left: 100%; animation: tick 28s linear infinite; }
+@keyframes tick { to { transform: translateX(-100%); } }
+
+/* 段組み */
+#cols { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
+#main { flex: 1; min-width: 0; }
+#side { width: 210px; flex-shrink: 0; font-size: 13px; line-height: 1.6; }
+
+/* 記事 */
+.entry-date { margin: 0; font-size: 13px; color: #fff; background: var(--pink); display: inline-block; padding: 0 10px; }
+.entry-title { margin: 6px 0 2px; font-size: 21px; line-height: 1.45; color: var(--pink-d); border-bottom: 2px solid var(--pink); padding-bottom: 4px; }
+.entry-cat { margin: 0 0 14px; font-size: 12px; color: #888; }
+.entry-body h2 { margin: 36px 0 12px; font-size: 18px; color: #fff; background: var(--pink); padding: 4px 10px; border-left: 8px solid var(--pink-d); scroll-margin-top: 8px; }
+.entry-body h3 { margin: 22px 0 8px; font-size: 16px; color: var(--pink-d); border-bottom: 2px dotted var(--pink); }
+.entry-body h3::before { content: "■ "; }
+.entry-body p { margin: 0 0 12px; }
+.red { color: #e0002a; font-weight: bold; }
+.small { font-size: 12px; color: #777; }
+b { color: #b0003a; }
+
+.caution { border: 2px dashed #e0002a; background: #fffbe6; padding: 8px 14px; margin: 16px 0; }
+.caution-title { text-align: center; font-weight: bold; color: #e0002a; margin: 0 0 4px !important; }
+.caution ul { margin: 0; padding-left: 1.2em; }
+
+.toc-title { margin: 18px 0 4px !important; font-weight: bold; color: var(--pink-d); }
+.toc { margin: 0 0 8px; padding: 8px 8px 8px 2.4em; background: var(--pink-ll); border: 1px solid var(--pink-l); }
+
+ul.dot { list-style: none; padding-left: 0; margin: 0 0 12px; }
+ul.dot > li { position: relative; padding-left: 1.2em; margin-bottom: 6px; }
+ul.dot > li::before { content: "・"; position: absolute; left: 0; color: var(--pink); font-weight: bold; }
+
+/* 葵のツッコミ */
+.tsukkomi { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0 14px; padding: 8px 10px; background: var(--blue-l); border: 1px dashed var(--blue); border-radius: 6px; }
+.tsukkomi p { margin: 0 !important; }
+.tsukkomi .who { display: inline-block; margin-right: 8px; padding: 0 6px; color: #fff; background: var(--blue); font-size: 12px; font-weight: bold; border-radius: 3px; }
+.icon { width: 40px; height: 40px; flex-shrink: 0; image-rendering: pixelated; border: 1px solid #b9d3ee; background: #fff; }
+.icon-s { width: 20px; height: 20px; vertical-align: middle; image-rendering: pixelated; border: 1px solid #ddd; }
+.icon-l { width: 72px; height: 72px; image-rendering: pixelated; border: 1px solid #e3a0b5; }
+
+/* スクショ */
+.shot { margin: 12px 0 16px; text-align: center; }
+.shot img { width: 512px; image-rendering: pixelated; border: 3px solid #fff; outline: 1px solid #ccc; box-shadow: 3px 3px 0 #f6c6d6; }
+.shot figcaption { font-size: 12px; color: #777; margin-top: 4px; }
+
+/* チャート */
+ol.chart { list-style: none; counter-reset: st; padding: 0; margin: 0 0 14px; }
+ol.chart > li { counter-increment: st; position: relative; padding: 6px 10px 6px 42px; background: var(--pink-ll); border: 2px solid var(--pink); }
+ol.chart > li::before { content: counter(st); position: absolute; left: 8px; top: 7px; width: 24px; height: 24px; line-height: 24px; text-align: center; color: #fff; background: var(--pink); border-radius: 50%; font-weight: bold; font-size: 13px; }
+ol.chart > li + li { margin-top: 22px; }
+ol.chart > li + li::after { content: "▼"; position: absolute; top: -21px; left: 50%; transform: translateX(-50%); color: var(--pink); font-size: 14px; line-height: 20px; }
+ol.chart > li > span { display: block; font-size: 13px; color: #666; }
+
+.flow { display: flex; flex-direction: column; gap: 18px; margin: 8px 0 14px; }
+.flow-box { position: relative; display: flex; align-items: baseline; gap: 12px; padding: 5px 12px; font-weight: bold; color: var(--pink-d); background: var(--pink-ll); border: 2px solid var(--pink); font-size: 15px; line-height: 1.4; }
+.flow-box small { font-weight: normal; font-size: 13px; color: #666; }
+.flow-box:not(.last)::after { content: "▼"; position: absolute; left: 50%; bottom: -18px; transform: translateX(-50%); color: var(--pink); font-size: 13px; line-height: 16px; }
+.flow-box.last { background: #fff3c4; border-color: #e0a800; color: #9a6a00; }
+
+table { border-collapse: collapse; width: 100%; margin: 0 0 14px; font-size: 14px; line-height: 1.6; }
+th, td { border: 1px solid #e3a0b5; padding: 5px 8px; vertical-align: top; }
+th { background: var(--pink-l); color: var(--pink-d); white-space: nowrap; }
+table.need td:nth-child(3), table.need td:nth-child(4) { text-align: center; }
+table.need td:nth-child(4) { font-weight: bold; color: #e0002a; }
+
+/* 反転（ネタバレ隠し） */
+.hanten { color: #fff; background: #fff; border-bottom: 1px dashed #bbb; cursor: pointer; transition: color .2s; -webkit-tap-highlight-color: transparent; }
+.hanten-block { display: block; padding: 6px 10px; border: 1px dashed #bbb; position: relative; min-height: 2.6em; }
+.hanten-block:not(.open)::before { content: "（ネタバレ：なぞるか、タップで表示）"; position: absolute; left: 10px; top: 6px; color: #aaa; font-size: 12px; pointer-events: none; }
+.hanten::selection, .hanten *::selection { color: var(--ink); background: #ffe08a; }
+.hanten.open { color: inherit; background: #fffdf0; cursor: auto; }
+.hanten:not(.open) b, .hanten:not(.open) strong, .hanten:not(.open) .who { color: #fff; background: transparent; }
+.hanten:not(.open) img, .hanten:not(.open) .tsukkomi, .hanten:not(.open) .shot { display: none; }
+.hanten:not(.open) ul.dot > li::before { color: #fff; }
+.hanten:focus-visible { outline: 2px solid var(--blue); }
+
+/* エンディング */
+.ed { border: 1px solid #e3a0b5; border-left: 6px solid var(--pink); padding: 8px 12px; margin: 0 0 12px; background: #fff; }
+.ed.secret { border-left-color: #9a6a00; background: #fffcf0; }
+.ed-name { font-weight: bold; color: var(--pink-d); font-size: 16px; margin: 0 0 4px !important; }
+.ed.secret .ed-name { color: #9a6a00; }
+details { margin-top: 4px; }
+summary { cursor: pointer; color: var(--link); text-decoration: underline; font-size: 14px; }
+details[open] { background: var(--pink-ll); padding: 4px 8px 2px; }
+
+/* はっけん全リスト */
+.disc-ch summary { font-size: 15px; font-weight: bold; color: var(--pink-d); text-decoration: none; padding: 4px 8px; background: var(--pink-l); border: 1px solid #e3a0b5; margin-bottom: 4px; }
+.disc-ch summary::marker { color: var(--pink); }
+.disc-ch { margin-bottom: 8px; }
+.disc-ch[open] { background: transparent; padding: 0; }
+.disc-table td { font-size: 13px; }
+.disc-table td:first-child { white-space: nowrap; }
+.disc-table .sp td { background: #fff8de; }
+.disc-table .hint { display: block; color: #777; font-size: 12px; }
+.tag { display: inline-block; padding: 0 5px; font-size: 11px; line-height: 1.6; border-radius: 3px; color: #fff; background: #999; white-space: nowrap; }
+.tag.くいしんぼ { background: #d9822b; }
+.tag.あまえんぼ { background: #e0577f; }
+.tag.いたずら { background: #8e44ad; }
+.tag.ねぼすけ { background: #5b7fa6; }
+.tag.おしゃべり { background: #2a9d8f; }
+.tag.かんさつ { background: #6b8e23; }
+.tag.とくべつ { background: #c9a227; }
+
+.bye { margin-top: 30px !important; text-align: center; font-weight: bold; color: var(--pink-d); }
+.entry-foot { margin: 20px 0 0; padding: 6px 0; font-size: 12px; color: #888; border-top: 1px dotted #ccc; text-align: right; }
+.clap { font: inherit; font-size: 12px; padding: 1px 10px; color: var(--pink-d); background: #fff; border: 1px solid var(--pink); border-radius: 10px; cursor: pointer; }
+.clap:active { background: var(--pink-l); }
+.clap-msg { color: var(--pink-d); }
+
+/* コメント */
+.comments { margin-top: 26px; }
+.comments-title { font-size: 15px; margin: 0 0 8px; padding: 2px 8px; color: var(--pink-d); border-bottom: 2px solid var(--pink); }
+.comment { border-bottom: 1px dotted #ccc; padding: 6px 4px 8px; font-size: 14px; }
+.comment p { margin: 0 0 4px; }
+.c-head { font-size: 12px; color: #888; }
+.reply { margin: 4px 0 0 1.5em !important; padding: 4px 8px; background: var(--pink-ll); border-left: 3px solid var(--pink); font-size: 13px; }
+.pagetop { text-align: right; font-size: 13px; margin: 16px 0 0; }
+
+/* サイドバー */
+.box { border: 1px solid #e3a0b5; margin-bottom: 14px; background: #fff; }
+.box > * { margin-left: 8px; margin-right: 8px; }
+.box-title { margin: 0 0 6px !important; padding: 2px 8px; color: #fff; background: var(--pink); font-weight: bold; margin-left: 0 !important; margin-right: 0 !important; }
+.box p { margin-top: 0; margin-bottom: 6px; }
+.prof { text-align: center; }
+.side-aoi { font-size: 12px; color: var(--blue); }
+.game-link { font-weight: bold; font-size: 14px; }
+.side-list { list-style: none; padding: 0; margin-top: 0; margin-bottom: 8px; }
+.side-list li { padding: 2px 0; border-bottom: 1px dotted #eee; }
+.side-list li::before { content: "› "; color: var(--pink); }
+.new { color: #e0002a; font-size: 11px; font-weight: bold; animation: blink 1s steps(2, start) infinite; }
+@keyframes blink { to { visibility: hidden; } }
+.cal { width: calc(100% - 16px); font-size: 11px; margin-bottom: 8px; }
+.cal th, .cal td { padding: 1px 0; text-align: center; border: none; background: none; color: #555; }
+.cal caption { font-size: 12px; color: var(--pink-d); font-weight: bold; }
+.cal .sun { color: #e0002a; }
+.cal .sat { color: var(--blue); }
+.cal .today { background: var(--pink); color: #fff; font-weight: bold; border-radius: 50%; }
+.counter { text-align: center; margin: 4px 8px !important; }
+.counter span { display: inline-block; width: 18px; margin: 0 1px; font-family: "Courier New", monospace; font-weight: bold; color: #7fff7f; background: #111; border: 1px solid #555; }
+
+#foot { padding: 12px 16px; text-align: center; font-size: 12px; color: #888; border-top: 3px double var(--pink); background: #fff7fa; }
+#foot p { margin: 0 0 4px; }
+
+.loading { color: #999; }
+
+@media (max-width: 720px) {
+  #wrap { margin: 0; border: none; box-shadow: none; }
+  #cols { flex-direction: column; padding: 12px 16px; }
+  #side { width: 100%; }
+  .blog-title { font-size: 26px; }
+  .entry-title { font-size: 18px; }
+  .flow-box { flex-direction: column; gap: 0; }
+  table.carry th:first-child { white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker span { animation: none; padding-left: 0; }
+  .new { animation: none; }
+  html { scroll-behavior: auto; }
+}
