@@ -254,6 +254,9 @@ h2 { font-weight: normal; }
 .panel a { color: var(--aoi); }
 .panel .small { font-size: calc(12px * var(--sm)); opacity: .8; margin: 0; }
 .panel .note { margin-top: 0; }
+.panel .hint { margin: 0; min-height: calc(12px * 1.4 * 2 * var(--sm) + 6px * var(--sm)); font-size: calc(12px * var(--sm)); line-height: 1.4; opacity: .85; border-top: 1px solid rgba(232, 228, 216, .35); padding-top: calc(5px * var(--sm)); }   /* 思い出すヒント（2 行ぶん固定） */
+.panel li.pick { cursor: pointer; }
+.panel li.sel { color: #fff; text-decoration: underline; text-underline-offset: 2px; }
 .panel .tabs { display: flex; flex-wrap: wrap; gap: calc(6px * var(--sm)); }
 .panel .tabs button { min-height: calc(28px * var(--sm)); padding: 0 calc(10px * var(--sm)); font-size: calc(13px * var(--sm)); opacity: .75; }
 .panel .tabs button.on { opacity: 1; border-color: var(--akane); }
