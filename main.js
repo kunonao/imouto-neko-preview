@@ -355,8 +355,9 @@
     const p = ui['menu-panel'];
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, 'せってい'));
-    frag.appendChild(button(ui['btn-font'].textContent, function () { cycleFont(); this.textContent = ui['btn-font'].textContent; }));
-    frag.appendChild(button(ui['btn-costume'].textContent, function () { cycleCostume(); this.textContent = ui['btn-costume'].textContent; }));
+    // 押すたびに欄を作り直す（ボタンの文字を手で書き換えない。設定の値から毎回引く）
+    frag.appendChild(button(FONT_LABEL[settings.font], () => { cycleFont(); showSettings(); }));
+    frag.appendChild(button(COSTUME_LABEL[settings.costume], () => { cycleCostume(); showSettings(); }));
     frag.appendChild(button('もどる', openMenu));
     p.replaceChildren(frag);
   }
@@ -1052,7 +1053,8 @@
 
       const calm = T > total / 1000 - 10 || beside;   // 終盤は歩幅を合わせ、距離の採点も休む
       const walkingNow = !tempting && !callAt && !waiting && !ahead && now >= waitUntil && !stumbling && !calm && catSpeed > 0;
-      if (walkingNow) { walkT += dt; if (leading ? akLane === wantLane : lane === akLane) sameT += dt; }   // 案内中は道しるべどおりなら同じ道（追従の遅れは数えない）
+      const safeDev = leading && akLane !== wantLane;   // 案内中、茜が安全のためにずれている間（自分でよけた／保留）は採点しない（Codex 第27回: 二重の罰にしない）
+      if (walkingNow && !safeDev) { walkT += dt; if (leading || lane === akLane) sameT += dt; }   // 案内中は道しるべどおり＝同じ道（追従の遅れは数えない）
       if (lane !== akLane) { if (!offSince) offSince = now; } else offSince = 0;
       if (offSince && now - offSince > 2500 && now > msgUntil && !tempting && !callAt) { say('お姉ちゃんと同じ道へ（▲▼）'); msgUntil = now + 2000; }
       if (F.dash && !tempting && !callAt) {
