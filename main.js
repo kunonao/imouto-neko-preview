@@ -54,7 +54,7 @@
 
   const ui = {};
   ['app', 'title', 'play', 'stage', 'stage-wrap', 'objective', 'dialog', 'd-name', 'd-text', 'd-next', 'commands', 'minigame', 'panel', 'btn-menu',
-    'menu', 'menu-panel', 'chapter-end', 'ce-title', 'ce-text', 'btn-next', 'toast', 'btn-new', 'btn-continue', 'btn-font', 'btn-costume', 'btn-credits',
+    'menu', 'menu-panel', 'chapter-end', 'ce-title', 'ce-text', 'btn-next', 'toast', 'btn-new', 'btn-continue', 'btn-memories', 'btn-font', 'btn-costume', 'btn-credits',
     'card', 'card-small', 'card-label', 'card-big', 'disc', 'btn-found']
     .forEach(id => { ui[id] = $(id); });
 
@@ -151,7 +151,7 @@
   function endLater(ms, result, set) { const g = game; setTimeout(() => { if (game === g) endGame(result, set); }, ms); }   // 終了待ちの間に章が変わった（game が入れ替わった）ら流し込まない   // 動いているミニゲームのタイマーを止める（章の切り替え・タイトルへ のとき。止めないと裏で回り続け、終わったときに別の章へ結果を流し込む）
   function initTitle() {
     mode = 'title'; stopGame();
-    ui['btn-continue'].classList.toggle('hidden', !loadProgress());
+    { const snap = loadProgress(); ui['btn-continue'].classList.toggle('hidden', !snap || (snap.fresh && snap.chapterIndex === 0)); }   // 最後まで行ったあとの保存（1章の頭）は はじめから と同じなので出さない
     showScreen('title');
   }
 
@@ -170,7 +170,7 @@
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, '今日の終わり方'));
     frag.appendChild(el('p', 'note', '今日の過ごし方で、いくつかの終わり方が開きました。どれにしますか'));
-    cands.forEach(n => frag.appendChild(button(seen.includes(n) ? `${n}（見た）` : `${n}　★まだ`, () => { pickerOpen = false; closeMenu(); done(n); })));
+    cands.forEach(n => frag.appendChild(button(seen.includes(n) ? `${n}（見た）` : `${n}（はじめて）`, () => { pickerOpen = false; closeMenu(); done(n); })));
     p.replaceChildren(frag);
     showScreen('play');
     pickerOpen = true;
@@ -229,7 +229,8 @@
     }
   }
   function onActionEnd(ev) {
-    if (ev.fresh.length) { showDisc(ev.fresh); updateFound(); }
+    if (ev.fresh.length) showDisc(ev.fresh);
+    updateFound();   // 今回の周回の数は再発見でも増える
     if (ev.cleared && params.get('hold') === '1') { mode = 'commands'; return; }   // 確認用: クリア画面に進まず最後の場面で止まる
     if (ev.cleared) {
       const next = E.chapterIndex + 1;
@@ -275,8 +276,8 @@
       rememberEnding(E.ending);
       const t = totals(), seen = seenEndings();
       ui['ce-title'].textContent = E.ending ? `エンディング『${E.ending}』` : 'おしまい';
-      ui['ce-text'].textContent = `この周回のはっけん ${t.run} / ${t.total}　　とくべつ ${t.runSpecial} / ${t.specialTotal}　　エンディング ${seen.length} / ${ENDINGS.length}` +   // 小さいものから（メニューの おもいで と同じ順）
-        '\n\n終わり方は、一日の過ごし方で変わります。メニューの「おもいで」で見たものを確認できます' +
+      ui['ce-text'].textContent = `今回：はっけん ${t.run} / ${t.total}　とくべつ ${t.runSpecial} / ${t.specialTotal}\nこれまでに見たエンディング ${seen.length} / ${ENDINGS.length}` +   // 今回と累計は別の行に（Codex 第32回）
+        '\n\n終わり方は、一日の過ごし方で変わります。見たものはタイトルの「おもいで」で確認できます' +
         '\n\n（試作版。音声はこれから）';
       ui['btn-next'].textContent = 'タイトルへ';
       ui['btn-next'].onclick = initTitle;
@@ -336,7 +337,7 @@
     const p = ui['menu-panel'];
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, 'メニュー'));
-    if (E.hasHint()) frag.appendChild(button('ヒント', () => { closeMenu(); doCommand('ヒント'); }));
+    if (E.hasHint()) frag.appendChild(button('ヒント（終わり方には影響しません）', () => { closeMenu(); if (mode !== 'commands') { toast('ヒントは、行動を選べるときに見られます'); return; } doCommand('ヒント'); }));
     frag.appendChild(button('おもいで', showMemories));
     frag.appendChild(button('せってい', showSettings));
     frag.appendChild(button('章をえらぶ', showChapters));
@@ -348,19 +349,19 @@
   function closeMenu() { ui.menu.classList.add('hidden'); }
   function legend(prefix) {   // おもいで の凡例: ■ 今回の周回 ／ □ 前の周回 ／ ？？？ まだ（文字の接尾ではなく印にする。2 列の一覧で折り返さないように）
     const p = el('p', 'note'); if (prefix) p.append(prefix);
-    p.append(el('span', 'key', '今回の周回'), '　', el('span', 'key past', '過去の周回'), '　？？？ まだ');
+    p.append(el('span', 'key', '今回の周回'), '　', el('span', 'key past', '以前の記録'), '　？？？ まだ');   // 以前 = 前の周回と、章をえらび直す前の記録
     return p;
   }
   function showMemories() {
     const p = ui['menu-panel'];
-    const c = E.counts(), seen = seenEndings(), routesSeen = seenRoutes(), totalRoutes = ROUTES.reduce((n, r) => n + r.length, 0);
+    const t = totals(), seen = seenEndings(), routesSeen = seenRoutes(), totalRoutes = ROUTES.reduce((n, r) => n + r.length, 0);
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, 'おもいで'));
     // 小さいものから大きいものへ: はっけん（場面） → ルート（章） → エンディング（一日）。ユーザー指定 2026-10-23
-    frag.appendChild(button(`はっけん　${c.found} / ${c.total}（この章）`, showFound));
+    frag.appendChild(button(`はっけん　${t.found} / ${t.total}　★ ${t.special} / ${t.specialTotal}`, () => showFound()));
     frag.appendChild(button(`ルート　${routesSeen.length} / ${totalRoutes}`, showRoutes));
     frag.appendChild(button(`エンディング　${seen.length} / ${ENDINGS.length}`, showEndings));
-    frag.appendChild(button('もどる', openMenu));
+    frag.appendChild(mode === 'title' ? button('とじる', closeMenu) : button('もどる', openMenu));   // タイトルからは とじる
     p.replaceChildren(frag);
   }
   function showSettings() {
@@ -370,7 +371,8 @@
     // 押すたびに欄を作り直す（ボタンの文字を手で書き換えない。設定の値から毎回引く）
     frag.appendChild(button(FONT_LABEL[settings.font], () => { cycleFont(); showSettings(); }));
     const changed = E.visual && E.visual.costume === 'べつ';   // 終章は台本で「昨日と違う服」。設定の次の衣装が出るので、そのときだけ補足して不具合と思われないように
-    frag.appendChild(button(COSTUME_LABEL[settings.costume] + (changed ? '（翌朝は着替えています）' : ''), () => { cycleCostume(); showSettings(); }));
+    const short = k => COSTUME_LABEL[k].replace('衣装: ', '');
+    frag.appendChild(button(COSTUME_LABEL[settings.costume] + (changed ? `（今朝は ${short(COSTUME_NEXT[settings.costume])}）` : ''), () => { cycleCostume(); showSettings(); }));   // 終章は台本で「昨日と違う服」= 設定の次の衣装
     frag.appendChild(button('もどる', openMenu));
     p.replaceChildren(frag);
   }
@@ -379,6 +381,7 @@
     const routesSeen = seenRoutes(), totalRoutes = ROUTES.reduce((n, r) => n + r.length, 0);
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, `ルート ${routesSeen.length} / ${totalRoutes}`));
+    frag.appendChild(el('p', 'note', '章ごとのクリアのしかた（どの終わり方で章を終えたか）'));
     frag.appendChild(legend());   // 凡例だけ（前置きを付けると 2 行になる）
     DATA.chapters.forEach((ch, ci) => {
       if (!ROUTES[ci].length) return;
@@ -390,19 +393,27 @@
     frag.appendChild(button('もどる', showMemories));
     p.replaceChildren(frag);
   }
-  function showFound() {
+  let foundView = null;   // おもいで の はっけん で見ている章（進行は変えない）
+  function showFound(ci) {
+    if (typeof ci !== 'number') ci = foundView != null ? foundView : (E.chapter ? E.chapterIndex : 0);
+    foundView = ci;
     const p = ui['menu-panel'];
-    const c = E.counts();
+    const c = E.counts(ci);
     const frag = document.createDocumentFragment();
-    frag.appendChild(el('h2', null, `はっけん ${c.found} / ${c.total}　とくべつ ${c.special} / ${c.specialTotal}`));
-    frag.appendChild(legend(`この周回で ${c.run}　`));
+    frag.appendChild(el('h2', null, 'はっけん'));
+    const tabs = el('div', 'tabs');   // 章の切り替え（見るだけ。進行は変えない）
+    DATA.chapters.forEach((ch, i) => { if (E.counts(i).total) tabs.appendChild(button(`${i + 1}章`, () => showFound(i), i === ci ? 'on' : '')); });
+    frag.appendChild(tabs);
+    frag.appendChild(el('p', 'note', `集めた数 ${c.found} / ${c.total}　とくべつ ${c.special} / ${c.specialTotal}　この周回で ${c.run}`));   // 上の帯は今回の周回の数。ここは以前を含む
+    frag.appendChild(legend());
     const ul = el('ul', 'two');   // 26 件を 2 列で（板の高さに収める）
-    E.discoveryList().forEach(d => {   // 今回の周回で見つけた / 前の周回だけ（薄く）/ まだ
+    E.discoveryList(ci).forEach(d => {   // 今回の周回で見つけた / 以前だけ（薄く）/ まだ
       const cls = !d.name ? 'todo' : ((d.run ? '' : 'past ') + (d.special ? 'special' : '')).trim();
       const li = el('li', cls, d.name ? (d.special ? '★ ' : '') + d.name : '？？？');
       ul.appendChild(li);
     });
     frag.appendChild(ul);
+    frag.appendChild(el('p', 'note', '★ は姉妹の思い出（各章に 1 つ）。同じ周回で 4 つそろうと、いつもと違う朝になるかも'));
     frag.appendChild(button('もどる', showMemories));
     p.replaceChildren(frag);
   }
@@ -438,7 +449,8 @@
   function showChapters() {
     const p = ui['menu-panel'];
     const frag = document.createDocumentFragment();
-    frag.appendChild(el('h2', null, '章をえらぶ（はっけんは残ります）'));
+    frag.appendChild(el('h2', null, '章をえらぶ'));
+    frag.appendChild(el('p', 'note', '選んだ章の最初からやり直します。その章から先の今回の記録は戻り、1章を選ぶと新しい周回になります。集めたはっけんは残ります'));
     DATA.chapters.forEach((ch, i) => frag.appendChild(button(ch.title, () => { closeMenu(); startChapter(i); })));
     frag.appendChild(button('もどる', openMenu));
     p.replaceChildren(frag);
@@ -772,13 +784,15 @@
     else if (E.state.さんぽきろく) { try { walkMemo = Object.assign({ same: 0, walk: 0, replies: 0, detours: 0 }, JSON.parse(E.state.さんぽきろく)); } catch (e) { /* 壊れていれば捨てる */ } }   // 保存から戻ったときのため
     const F = { dash: seg >= 2, calls: seg >= 3 };
     const V = { cat: 18, ak: 20, dash: 34 };
-    const t0 = Date.now();
+    let pausedTotal = 0, pausedSince = 0;
+    const clock = () => Date.now() - pausedTotal;   // ゲーム内の時計。メニューを開いている間は進まない（Codex 第32回）
+    const t0 = clock();
     let done = false, scroll = 0;
     const LANES = [124, 135, 147], CAT_X = 72, FLOOR = 140;
     // ── 画面 ──
     const title = el('div', 'title two', '');   // 題名と状況欄は 2 行ぶんの高さで固定（文の行数でボタンが動かないように）
     const status = el('div', 'prog', '');
-    const skipBtn = button('スキップ', () => finish('ふつう', Object.assign({}, WALK_RESET)), 'small');
+    const skipBtn = button('スキップ', () => finish('ふつう', flags()), 'small');   // 残りを飛ばすだけ。ここまでの行動の印は残す
     const statusRow = el('div', 'status two'); statusRow.append(status);   // スキップは下の段（ボタンの間）へ。状況欄は幅いっぱい使う
     const bar = el('div', 'bar'); const fill = document.createElement('div'); fill.style.width = '0%'; bar.appendChild(fill);
     const bottom = el('div', 'row wide');
@@ -787,8 +801,8 @@
     const say = s => { status.textContent = s; };
     const log = [];
     let lastTalk = '', lastTalkAt = 0, retalk = '';   // 小話が読まれる前（1.5 秒以内）に操作の合図で上書きされたら、あとでもう一度流す
-    const event = (s, ms) => { const now = Date.now(); if (lastTalk && now - lastTalkAt < 1500) retalk = lastTalk; lastTalk = ''; say(s); msgUntil = now + (ms || 1800); log.push(Math.round((now - t0) / 100) / 10 + 's ' + s); };
-    const talk = s => { event(s, 3500); lastTalk = s; lastTalkAt = Date.now(); };
+    const event = (s, ms) => { const now = clock(); if (lastTalk && now - lastTalkAt < 1500) retalk = lastTalk; lastTalk = ''; say(s); msgUntil = now + (ms || 1800); log.push(Math.round((now - t0) / 100) / 10 + 's ' + s); };
+    const talk = s => { event(s, 3500); lastTalk = s; lastTalkAt = clock(); };
     function finish(grade, extra) {
       if (done) return;
       done = true; clearInterval(timer);
@@ -896,7 +910,7 @@
     down.onpointerdown = e => { e.preventDefault(); move(1); };
     const answer = () => {
       if (done || !callAt) return;
-      const now = Date.now();
+      const now = clock();
       replies++;
       if (now - callAt <= 1200) { smileUntil = now + 1000; event('にゃあ。……茜が、笑った'); }
       else { nodUntil = now + 800; event('にゃ。……茜が、うなずいた'); }
@@ -907,7 +921,7 @@
     const CARRY_REPLY = ['にゃー。……茜「はいはい」', 'にゃー。……茜「なんや、ご機嫌やな」', 'にゃー。……茜「落とさへんから、安心し」', 'にゃー。……茜「……うん。うちもや」'];
     const meowAct = () => {
       if (done) return;
-      const now = Date.now();
+      const now = clock();
       if (carried) { if (now > msgUntil) { event(CARRY_REPLY[Math.min(meows, CARRY_REPLY.length - 1)], 1800); meows++; } }   // だっこ中: 鳴くたびに茜が返す（4 回目からは同じ）
       else if (callAt) answer();
       else if (now > msgUntil) event('にゃ。……茜「ん？ どないしたん」', 1500);   // 呼ばれていないときに鳴いても、何も起きない（茜が振り向くだけ）
@@ -1143,7 +1157,7 @@
     const EAR = ['...P...', '...P...', '..PPP..', '..PPP..', '...P...', '...G...', '...G.G.', '.G.GD..', '..GG...', '...D...'];   // 草の穂 1 本（先細り）
     const LEAF = ['...OO.', '..OOO.', '.OOBO.', '..OB..', '.B....'];   // 斜めの葉身＋葉柄
     const drawItem = it => {
-      const x = Math.round(it.x), y = (it.y != null ? it.y : LANES[it.lane]) + Math.round(it.dy || 0), ph = Math.floor((Date.now() / 100 + (it.seed || 0))) % 2;
+      const x = Math.round(it.x), y = (it.y != null ? it.y : LANES[it.lane]) + Math.round(it.dy || 0), ph = Math.floor((clock() / 100 + (it.seed || 0))) % 2;
       switch (it.kind) {
         case 'みずたまり':   // 楕円の水たまり（上下 1 段ずつ細く）＋ハイライト
           rect(x + 2, y - 3, 8, 1, '#5a8ac8'); rect(x, y - 2, 12, 1, '#5a8ac8'); rect(x + 2, y - 1, 8, 1, '#5a8ac8'); rect(x + 3, y - 3, 4, 1, '#a0c8f0'); break;
@@ -1155,7 +1169,7 @@
           for (let i = 0; i < 5; i++) { rect(x + 1 + i * 2, y - 5, 1, 1, '#a07838'); rect(x + 2 + i * 2, y - 4, 1, 1, '#a07838'); } break;
         case 'だんボール':   // 段ボール箱: 上のふたの線＋中央のテープ
           rect(x, y - 7, 11, 7, '#c8a878'); rect(x + 1, y - 6, 9, 1, '#a08050'); rect(x + 5, y - 7, 1, 7, '#a08050'); break;
-        case 'ちょう': pix(BUTTERFLY[Math.floor(Date.now() / 160 + (it.seed || 0)) % 2], x, y - 16, { K: C.black, Y: C.yellow }); break;   // 黄色い蝶＋縁取り。0.16 秒ごとに羽ばたく
+        case 'ちょう': pix(BUTTERFLY[Math.floor(clock() / 160 + (it.seed || 0)) % 2], x, y - 16, { K: C.black, Y: C.yellow }); break;   // 黄色い蝶＋縁取り。0.16 秒ごとに羽ばたく
         case 'はち':   // 鉢植え（縁あり）から垂れた葉
           rect(x + 2, y - 5, 6, 5, '#a05030'); rect(x + 1, y - 5, 8, 1, '#c06040'); rect(x + 1, y - 8, 8, 3, '#3a7a30'); rect(x + 8 + ph, y - 6, 3, 1, '#5a9a40'); rect(x + 10 + ph, y - 5, 2, 1, '#5a9a40'); break;
         case 'くさのほ': pix(EAR, x - 1 + ph, y - 10, { P: '#d8c890', G: '#8aa050', D: '#5a7a30' }); break;   // 先細りの穂が揺れる
@@ -1200,7 +1214,7 @@
         { const x = wx(520); rect(x, 100, 8, 18, C.gray); rect(x + 2, 96, 4, 4, C.gray); rect(x + 3, 118, 2, 1, '#78b0e0'); }   // 水飲み場
         { const x = wx(1000); rect(x, 104, 6, 12, '#f0c090'); rect(x + 1, 100, 4, 4, '#604020'); rect(x + 7, 110, 4, 4, C.sofa); }   // 遠くの子どもとボール
       }
-      const bob = Math.floor(scroll / 8) % 2, now = view.now || Date.now();
+      const bob = Math.floor(scroll / 8) % 2, now = view.now || clock();
       const cx0 = Math.round(view.catX || CAT_X);
       const layers = items.filter(it => !(it.over && it.kind === 'ちょう' && (it.dy || 0) < -60)).map(it => ({ y: LANES[it.lane], f: () => drawItem(it) }));
       const ax = Math.round(CAT_X + d), ay = Math.round(akY);
@@ -1222,9 +1236,11 @@
       if (view.off && !carried) { const gy = LANES[view.akLane] - 1; for (let i = 0; i < 3; i++) rect(cx0 + 14 + i * 6, gy, 3, 1, C.white); }   // 「お姉ちゃんの道はここ」
     }
 
-    let last = Date.now();
+    let last = clock();
     const timer = setInterval(() => {
-      const now = Date.now(), t = now - t0, dt = Math.min(0.1, (now - last) / 1000); last = now;
+      if (!ui.menu.classList.contains('hidden')) { if (!pausedSince) pausedSince = Date.now(); return; }   // メニュー中は一時停止
+      if (pausedSince) { pausedTotal += Date.now() - pausedSince; pausedSince = 0; }
+      const now = clock(), t = now - t0, dt = Math.min(0.1, (now - last) / 1000); last = now;
       if (gallery) { render(); return; }
       tick(t, dt, now);
       const progress = carried ? t / total : scroll / roadLen;   // 道のりで進む（だっこは何も起きないので時間で）
@@ -1287,7 +1303,7 @@
   }
   function kbGame(p) {
     const target = Number(p.目標) || 15, limit = 5000;
-    let count = 0, started = 0, timer = null, holdTimer = null, done = false;
+    let count = 0, started = 0, timer = null, holdTimer = null, done = false, pausedAt = 0;
     const prog = el('div', 'prog', `0 / ${target}`);
     const bar = el('div', 'bar'); const fill = document.createElement('div'); fill.style.width = '100%'; bar.appendChild(fill);
     const btn = el('button', 'big', 'ふむ！');
@@ -1298,6 +1314,8 @@
       endLater(500, ok ? 'せいこう' : 'しっぱい');
     };
     const tick = () => {
+      if (!ui.menu.classList.contains('hidden')) { if (!pausedAt) pausedAt = Date.now(); return; }   // メニュー中は止まる
+      if (pausedAt) { started += Date.now() - pausedAt; pausedAt = 0; }
       const t = Date.now() - started;
       fill.style.width = Math.max(0, 100 - t / limit * 100) + '%';
       if (t >= limit) finish(count >= target);
@@ -1392,6 +1410,7 @@
   };
   ui['btn-font'].onclick = cycleFont;
   ui['btn-credits'].onclick = showCredits;
+  ui['btn-memories'].onclick = () => { showMemories(); ui.menu.classList.remove('hidden'); };   // タイトルからも おもいで を見られる（終章のまとめの案内先）
   ui['btn-costume'].onclick = cycleCostume;
   ui['btn-menu'].onclick = openMenu;   // メニューは常に出しておく
   ui['btn-found'].onclick = () => { showFound(); ui.menu.classList.remove('hidden'); };

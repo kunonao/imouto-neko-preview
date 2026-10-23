@@ -250,6 +250,9 @@ h2 { font-weight: normal; }
 .panel a { color: var(--aoi); }
 .panel .small { font-size: calc(12px * var(--sm)); opacity: .8; margin: 0; }
 .panel .note { margin-top: 0; }
+.panel .tabs { display: flex; flex-wrap: wrap; gap: calc(6px * var(--sm)); }
+.panel .tabs button { min-height: calc(28px * var(--sm)); padding: 0 calc(10px * var(--sm)); font-size: calc(13px * var(--sm)); opacity: .75; }
+.panel .tabs button.on { opacity: 1; border-color: var(--akane); }
 
 #card {
   position: fixed; inset: 0; z-index: 20;

@@ -172,8 +172,9 @@
         const id = `c${this.chapterIndex + 1}.${d.id}`;
         const store = d.special ? this.special : this.found;
         const run = d.special ? this.runSpecial : this.runFound;
-        if (!store[id]) { store[id] = d.name; fresh.push(d); }
-        if (!run[id]) { run[id] = d.name; this.state[id] = 'すみ'; }
+        const again = !!store[id];   // コレクションには前の周回からある
+        if (!store[id]) store[id] = d.name;
+        if (!run[id]) { run[id] = d.name; this.state[id] = 'すみ'; fresh.push(Object.assign({}, d, { again })); }   // この周回で初めて → 札を出す（帯も今回の数）
       }
       this.pending = [];
       return { type: 'end', cleared: this.cleared, fresh };
@@ -229,10 +230,10 @@
     }
 
     // この章のはっけん数
-    counts() {
-      const pre = `c${this.chapterIndex + 1}.`;
+    counts(ci = this.chapterIndex) {
+      const pre = `c${ci + 1}.`;
       const ids = new Set();
-      const all = this.chapter.blocks.flatMap(b => b.discoveries).filter(d => !ids.has(d.id) && ids.add(d.id));
+      const all = this.chapters[ci].blocks.flatMap(b => b.discoveries).filter(d => !ids.has(d.id) && ids.add(d.id));
       return {
         found: Object.keys(this.found).filter(k => k.startsWith(pre)).length,
         run: Object.keys(this.runFound).filter(k => k.startsWith(pre)).length,   // この周回で見つけた数
@@ -244,11 +245,11 @@
     }
 
     // この章の全はっけん（見つけたものだけ名前が入る）
-    discoveryList() {
-      const pre = `c${this.chapterIndex + 1}.`;
+    discoveryList(ci = this.chapterIndex) {   // ci: 見たい章（おもいで で他の章も見る。進行は変えない）
+      const pre = `c${ci + 1}.`;
       const seen = new Set();
       const list = [];
-      for (const d of this.chapter.blocks.flatMap(b => b.discoveries)) {
+      for (const d of this.chapters[ci].blocks.flatMap(b => b.discoveries)) {
         if (seen.has(d.id)) continue;
         seen.add(d.id);
         const got = (d.special ? this.special : this.found)[pre + d.id];
