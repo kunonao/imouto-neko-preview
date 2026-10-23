@@ -269,8 +269,8 @@
       rememberEnding(E.ending);
       const t = totals(), seen = seenEndings();
       ui['ce-title'].textContent = E.ending ? `エンディング『${E.ending}』` : 'おしまい';
-      ui['ce-text'].textContent = `エンディング ${seen.length} / ${ENDINGS.length}　　はっけん ${t.found} / ${t.total}　　とくべつ ${t.special} / ${t.specialTotal}` +
-        '\n\n終わり方は、一日の過ごし方で変わります。メニューの「エンディング」で見たものを確認できます' +
+      ui['ce-text'].textContent = `はっけん ${t.found} / ${t.total}　　とくべつ ${t.special} / ${t.specialTotal}　　エンディング ${seen.length} / ${ENDINGS.length}` +   // 小さいものから（メニューの おもいで と同じ順）
+        '\n\n終わり方は、一日の過ごし方で変わります。メニューの「おもいで」で見たものを確認できます' +
         '\n\n（試作版。音声はこれから）';
       ui['btn-next'].textContent = 'タイトルへ';
       ui['btn-next'].onclick = initTitle;
@@ -345,9 +345,10 @@
     const c = E.counts(), seen = seenEndings(), routesSeen = seenRoutes(), totalRoutes = ROUTES.reduce((n, r) => n + r.length, 0);
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, 'おもいで'));
+    // 小さいものから大きいものへ: はっけん（場面） → ルート（章） → エンディング（一日）。ユーザー指定 2026-10-23
     frag.appendChild(button(`はっけん　${c.found} / ${c.total}（この章）`, showFound));
-    frag.appendChild(button(`エンディング　${seen.length} / ${ENDINGS.length}`, showEndings));
     frag.appendChild(button(`ルート　${routesSeen.length} / ${totalRoutes}`, showRoutes));
+    frag.appendChild(button(`エンディング　${seen.length} / ${ENDINGS.length}`, showEndings));
     frag.appendChild(button('もどる', openMenu));
     p.replaceChildren(frag);
   }
