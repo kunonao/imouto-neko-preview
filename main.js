@@ -127,7 +127,7 @@
   function updateFound() {
     if (!E.chapter) return;
     const c = E.counts();
-    ui['btn-found'].textContent = `はっけん ${c.found}/${c.total}` + (c.specialTotal ? ` ★${c.special}/${c.specialTotal}` : '');
+    ui['btn-found'].textContent = `はっけん ${c.run}/${c.total}` + (c.specialTotal ? ` ★${c.runSpecial}/${c.specialTotal}` : '');   // 今回の周回の数（過去の周回ぶんは おもいで で）
   }
   // 画面全体のカード（章と目標の提示）。最初の 1.5 秒はタップを無視して必ず見せる（連打していても消えない）。その後はタップで閉じ、2.8 秒で自動的に閉じる
   function showCard(small, label, big, done) {
@@ -268,14 +268,14 @@
       ui['ce-title'].textContent = E.chapter.title + '　クリア';
       // ここでは「どのルートだったか」だけ示す（何通りあるか・集まり具合はメニューの「エンディング」で）
       ui['ce-text'].textContent = (route ? `ルート「${route}」\n\n` : '') +
-        `はっけん ${c.found} / ${c.total}　　とくべつ ${c.special} / ${c.specialTotal}`;
+        `はっけん ${c.run} / ${c.total}　　とくべつ ${c.runSpecial} / ${c.specialTotal}`;   // 今回の周回
       ui['btn-next'].textContent = 'つぎの章へ';
       ui['btn-next'].onclick = () => startChapter(E.chapterIndex + 1);
     } else {
       rememberEnding(E.ending);
       const t = totals(), seen = seenEndings();
       ui['ce-title'].textContent = E.ending ? `エンディング『${E.ending}』` : 'おしまい';
-      ui['ce-text'].textContent = `はっけん ${t.found} / ${t.total}　　とくべつ ${t.special} / ${t.specialTotal}　　エンディング ${seen.length} / ${ENDINGS.length}` +   // 小さいものから（メニューの おもいで と同じ順）
+      ui['ce-text'].textContent = `この周回のはっけん ${t.run} / ${t.total}　　とくべつ ${t.runSpecial} / ${t.specialTotal}　　エンディング ${seen.length} / ${ENDINGS.length}` +   // 小さいものから（メニューの おもいで と同じ順）
         '\n\n終わり方は、一日の過ごし方で変わります。メニューの「おもいで」で見たものを確認できます' +
         '\n\n（試作版。音声はこれから）';
       ui['btn-next'].textContent = 'タイトルへ';
@@ -286,7 +286,7 @@
   }
   function totals() {
     const all = DATA.chapters.flatMap((ch, ci) => { const ids = new Set(); return ch.blocks.flatMap(b => b.discoveries).filter(d => !ids.has(d.id) && ids.add(d.id)); });
-    return { found: Object.keys(E.found).length, total: all.filter(d => !d.special).length, special: Object.keys(E.special).length, specialTotal: all.filter(d => d.special).length };
+    return { found: Object.keys(E.found).length, total: all.filter(d => !d.special).length, special: Object.keys(E.special).length, specialTotal: all.filter(d => d.special).length, run: Object.keys(E.runFound).length, runSpecial: Object.keys(E.runSpecial).length };
   }
 
   // ---------- 会話 ----------

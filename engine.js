@@ -236,6 +236,7 @@
       return {
         found: Object.keys(this.found).filter(k => k.startsWith(pre)).length,
         run: Object.keys(this.runFound).filter(k => k.startsWith(pre)).length,   // この周回で見つけた数
+        runSpecial: Object.keys(this.runSpecial).filter(k => k.startsWith(pre)).length,
         total: all.filter(d => !d.special).length,
         special: Object.keys(this.special).filter(k => k.startsWith(pre)).length,
         specialTotal: all.filter(d => d.special).length,
