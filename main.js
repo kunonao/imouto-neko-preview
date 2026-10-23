@@ -911,7 +911,7 @@
         const planned = next && next.lane !== cand && !ahead(next.lane) && next.wx - akW < ob.x - akX - 10;   // 予定の道替えが物の 10 px 以上手前にある
         if (!planned) {
           const alts = [cand - 1, cand + 1].filter(l => l >= 0 && l <= 2 && !ahead(l)).sort((a, b) => Math.abs(a - wantLane) - Math.abs(b - wantLane));
-          if (alts.length) { cand = alts[0]; if (!ob.akDodged) { ob.akDodged = true; cueUntil = now + 800; event('茜「よいしょ」（案内中によけた）'); } }
+          if (alts.length) { cand = alts[0]; if (!ob.akDodged) { ob.akDodged = true; cueUntil = now + 800; if (now > msgUntil) event('茜「よいしょ」（案内中によけた）'); else log.push(Math.round((now - t0) / 100) / 10 + 's 茜「よいしょ」（案内中によけた。表示は「大丈夫かー？」のまま）'); } }
         }
       }
       if (cand !== akLane) log.push(Math.round((now - t0) / 100) / 10 + 's （茜が道を替えた → ' + cand + '）');
@@ -958,12 +958,12 @@
         else if ((BOT === 'follow' || (BOT === 'lead' && leading)) && tempt && can) { move(Math.sign(lane - tempt.lane) || (lane === 0 ? 1 : -1)); bot.moveAt = now; }
         else if (BOT === 'leadlate' && leading && can && items.some(it => it.type === '物' && !it.hit && it.lane === lane && it.x > CAT_X - 4 && it.x < CAT_X + 22)) { bot.retLane = lane; move(lane === 2 ? -1 : 1); bot.moveAt = now; }
         else if (BOT === 'leadlate' && leading && can && bot.retLane != null && !items.some(it => it.type === '物' && it.lane === bot.retLane && it.x > CAT_X - 20 && it.x < CAT_X + 22)) { move(Math.sign(bot.retLane - lane)); bot.moveAt = now; bot.retLane = null; }
-        else if (BOT !== 'idle' && BOT !== 'leadlate' && leading && can && items.some(it => it.type === '物' && !it.hit && it.lane === lane && it.x > CAT_X - 4 && it.x < CAT_X + 50)) { move(lane === 2 ? -1 : 1); bot.moveAt = now; }
+        else if (BOT !== 'idle' && BOT !== 'leadlate' && BOT !== 'leadclumsy' && leading && can && items.some(it => it.type === '物' && !it.hit && it.lane === lane && it.x > CAT_X - 4 && it.x < CAT_X + 50)) { move(lane === 2 ? -1 : 1); bot.moveAt = now; }
         else if (BOT !== 'idle' && !leading && lane !== akLane && !chase && !playing && !tempt && can) { move(Math.sign(akLane - lane)); bot.moveAt = now; }
         if (F.dash) {
           if (BOT === 'lead') dashing = T < 4 || (leading && d > -20) || (!leading && d > 52);
           else if (BOT === 'lazylead') dashing = T < 4 || (!leading && d > 52);
-          else if (BOT === 'leadlate') dashing = T < 4 || (leading && d > -20) || (!leading && d > 52);
+          else if (BOT === 'leadlate' || BOT === 'leadclumsy') dashing = T < 4 || (leading && d > -20) || (!leading && d > 52);   // leadclumsy: 案内中に物をよけない（茜が自分でよけるかの確認）
           else if (BOT === 'follow' || BOT === 'curious') dashing = !leading && d > 50;
           else dashing = false;
           if (callAt) { dashing = false; needRelease = false; }
