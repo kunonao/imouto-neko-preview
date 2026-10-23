@@ -268,7 +268,7 @@
       const route = E.state.ルート && E.state.ルート !== 'なし' ? E.state.ルート : '';
       ui['ce-title'].textContent = E.chapter.title + '　クリア';
       // ここでは「どのルートだったか」だけ示す（何通りあるか・集まり具合はメニューの「エンディング」で）
-      ui['ce-text'].textContent = (route ? `ルート「${route}」\n\n` : '') +
+      ui['ce-text'].textContent = (route ? `クリアルート「${route}」\n\n` : '') +
         `はっけん ${c.run} / ${c.total}　　とくべつ ${c.runSpecial} / ${c.specialTotal}`;   // 今回の周回
       ui['btn-next'].textContent = 'つぎの章へ';
       ui['btn-next'].onclick = () => startChapter(E.chapterIndex + 1);
@@ -359,7 +359,7 @@
     frag.appendChild(el('h2', null, 'おもいで'));
     // 小さいものから大きいものへ: はっけん（場面） → ルート（章） → エンディング（一日）。ユーザー指定 2026-10-23
     frag.appendChild(button(`はっけん　${t.found} / ${t.total}　★ ${t.special} / ${t.specialTotal}`, () => showFound()));
-    frag.appendChild(button(`ルート　${routesSeen.length} / ${totalRoutes}`, showRoutes));
+    frag.appendChild(button(`クリアルート　${routesSeen.length} / ${totalRoutes}`, showRoutes));
     frag.appendChild(button(`エンディング　${seen.length} / ${ENDINGS.length}`, showEndings));
     frag.appendChild(mode === 'title' ? button('とじる', closeMenu) : button('もどる', openMenu));   // タイトルからは とじる
     p.replaceChildren(frag);
@@ -380,7 +380,7 @@
     const p = ui['menu-panel'];
     const routesSeen = seenRoutes(), totalRoutes = ROUTES.reduce((n, r) => n + r.length, 0);
     const frag = document.createDocumentFragment();
-    frag.appendChild(el('h2', null, `ルート ${routesSeen.length} / ${totalRoutes}`));
+    frag.appendChild(el('h2', null, `クリアルート ${routesSeen.length} / ${totalRoutes}`));
     frag.appendChild(el('p', 'note', '章ごとのクリアのしかた（どの終わり方で章を終えたか）'));
     frag.appendChild(legend());   // 凡例だけ（前置きを付けると 2 行になる）
     DATA.chapters.forEach((ch, ci) => {
