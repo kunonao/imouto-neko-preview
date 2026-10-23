@@ -347,7 +347,7 @@
     if (E.hasHint()) frag.appendChild(button('ヒント（終わり方には影響しません）', () => { closeMenu(); if (mode !== 'commands') { toast('ヒントは、行動を選べるときに見られます'); return; } doCommand('ヒント'); }));
     frag.appendChild(button('おもいで', showMemories));
     frag.appendChild(button('せってい', showSettings));
-    frag.appendChild(button('章をえらぶ', showChapters));
+    frag.appendChild(button('時間をえらぶ', showChapters));   // 章 = あさ／ひる／ゆうがた／よる なので「時間」。もう一度たしかめたい人のための入口（研究用。鍵はかけない）
     frag.appendChild(button('タイトルへ', () => { closeMenu(); initTitle(); }));
     frag.appendChild(button('とじる', closeMenu));
     p.replaceChildren(frag);
@@ -481,8 +481,8 @@
   function showChapters() {
     const p = ui['menu-panel'];
     const frag = document.createDocumentFragment();
-    frag.appendChild(el('h2', null, '章をえらぶ'));
-    frag.appendChild(el('p', 'note', '選んだ章の最初からやり直します。その章から先の今回の記録は戻り、1章を選ぶと新しい周回になります。集めたはっけんは残ります'));
+    frag.appendChild(el('h2', null, '時間をえらぶ'));
+    frag.appendChild(el('p', 'note', 'もう一度たしかめたいときに。好きな時間の最初から遊べて、まだ来ていない時間も選べます。そこから先の今回の記録は戻り、あさ を選ぶと新しい周回になります。集めたはっけんは残ります。途中の時間から始めた周回は、終わり方の判定に使う記録が少なくなります'));
     DATA.chapters.forEach((ch, i) => frag.appendChild(button(ch.title, () => { closeMenu(); startChapter(i); })));
     frag.appendChild(button('もどる', openMenu));
     p.replaceChildren(frag);
