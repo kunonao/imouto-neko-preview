@@ -159,7 +159,10 @@
         const it = this.queue.shift();
         if (it.cond && !matches(it.cond, this.state)) continue;   // ?条件 の行。合わなければ飛ばす
         if (it.type === 'disc') { this.pending.push(it); continue; }   // 条件付きのはっけん
-        if (it.type === 'say') return this.hintMode ? Object.assign({}, it, { hint: true }) : it;
+        if (it.type === 'say') {   // hint = ヒントの行（話者名なし）。special = とくべつ のはっけんがある行動の中の行（枠と話者名を金色に。Codex 第31回で合意）
+          const special = this.pending.some(d => d.special);
+          return this.hintMode || special ? Object.assign({}, it, this.hintMode ? { hint: true } : {}, special ? { special: true } : {}) : it;
+        }
         if (it.type === 'minigame') { this.waitingGame = it; return { type: 'minigame', name: it.name, params: it.params }; }
         const ev = this.apply(it);
         if (ev) return ev;

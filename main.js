@@ -306,7 +306,7 @@
     else if (sp === '茜こころ') { name = '茜（こころのこえ）'; cls = 'akokoro'; }
     // 表情・演技は顔グラができるまで仮に名前へ添える
     if (it.tag && sp !== 'ナレ') name += `（${it.tag}）`;
-    setDialog(name, it.text, cls, true);
+    setDialog(name, it.text, cls + (it.special ? ' special' : ''), true);   // とくべつ の場面は枠と話者名が金色
   }
 
   // ---------- コマンド ----------
