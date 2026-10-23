@@ -348,7 +348,7 @@
   function closeMenu() { ui.menu.classList.add('hidden'); }
   function legend(prefix) {   // おもいで の凡例: ■ 今回の周回 ／ □ 前の周回 ／ ？？？ まだ（文字の接尾ではなく印にする。2 列の一覧で折り返さないように）
     const p = el('p', 'note'); if (prefix) p.append(prefix);
-    p.append(el('span', 'key', '今回の周回'), '　', el('span', 'key past', '前の周回'), '　？？？ まだ');
+    p.append(el('span', 'key', '今回の周回'), '　', el('span', 'key past', '過去の周回'), '　？？？ まだ');
     return p;
   }
   function showMemories() {
