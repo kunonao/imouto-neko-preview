@@ -358,7 +358,8 @@
     frag.appendChild(el('h2', null, 'せってい'));
     // 押すたびに欄を作り直す（ボタンの文字を手で書き換えない。設定の値から毎回引く）
     frag.appendChild(button(FONT_LABEL[settings.font], () => { cycleFont(); showSettings(); }));
-    frag.appendChild(button(COSTUME_LABEL[settings.costume], () => { cycleCostume(); showSettings(); }));
+    const changed = E.visual && E.visual.costume === 'べつ';   // 終章は台本で「昨日と違う服」。設定の次の衣装が出るので、そのときだけ補足して不具合と思われないように
+    frag.appendChild(button(COSTUME_LABEL[settings.costume] + (changed ? '（翌朝は着替えています）' : ''), () => { cycleCostume(); showSettings(); }));
     frag.appendChild(button('もどる', openMenu));
     p.replaceChildren(frag);
   }
