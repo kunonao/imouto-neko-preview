@@ -750,10 +750,10 @@
     let done = false, scroll = 0;
     const LANES = [124, 135, 147], CAT_X = 72, FLOOR = 140;
     // ── 画面 ──
-    const title = el('div', 'title', '');
+    const title = el('div', 'title two', '');   // 題名と状況欄は 2 行ぶんの高さで固定（文の行数でボタンが動かないように）
     const status = el('div', 'prog', '');
     const skipBtn = button('スキップ', () => finish('ふつう'), 'small');
-    const statusRow = el('div', 'status'); statusRow.append(status, skipBtn);
+    const statusRow = el('div', 'status two'); statusRow.append(status, skipBtn);
     const bar = el('div', 'bar'); const fill = document.createElement('div'); fill.style.width = '0%'; bar.appendChild(fill);
     const bottom = el('div', 'row wide');
     ui.minigame.replaceChildren(title, statusRow, bar, bottom);
@@ -876,8 +876,8 @@
     title.textContent = carried ? '抱っこで進む。何もしなくていい'
       : seg === 1 ? '住宅街。目標: お姉ちゃんと同じ道で、後ろを歩く（▲▼）'
       : seg === 2 ? '公園。目標: 同じ道を歩く。ダッシュで先頭にもなれる'
-      : '商店街。目標: 同じ道で、呼ばれたら返事（なく）';
-    say(carried ? 'お姉ちゃんの腕の中。ゆられている' : seg === 1 ? '足元の物は、お姉ちゃんがよけた方へ。端の気になる物は、見に行ってもいい' : seg === 2 ? '離れたら「ダッシュ」。近づいたら、ダッシュを離す' : '呼ばれたら、ボタンが「なく」に変わる');
+      : '商店街。目標: 同じ道で、呼ばれたら「なく」';
+    say(carried ? 'お姉ちゃんの腕の中。ゆられている' : seg === 1 ? '足元の物は、お姉ちゃんの真似でよける。端の物は、見に行ってもいい' : seg === 2 ? '離れたら「ダッシュ」。近づいたら、ダッシュを離す' : '呼ばれたら、ボタンが「なく」になる');
 
     // ── 毎フレーム ──
     const view = {};
@@ -885,7 +885,7 @@
       detours++; lane = it.lane; tempt = null; lastDetour = it.kind; visited[it.kind] = true;
       if (it.style === 'chase') {
         chase = { it, phase: 'lead', until: when + 1500 }; it.dy = 0;
-        event('……蝶が後ろへ。足が、勝手についていく。茜「こら、そっちちゃう」', 2500);
+        event('……蝶が後ろへ。足が勝手に。茜「こら、そっちちゃう」', 2500);   // 状況欄は横長で 1 行 16 字ほど。2 行（32 字）に収める
       } else {
         playing = it; playUntil = when + 1500; playStyle = it.style; it.hit = true;
         event(it.kind === 'はち' ? '……葉っぱを、前足でぽん。……鼻先をくすぐられました' : it.kind === 'くさのほ' ? '……鼻先で、ふわ。……くしゅん' : it.kind === 'おちば' ? '……転がる葉を、前足で押さえました。……また逃げた' : '……魚屋さんの前で、鼻が勝手に上を向きます', 2500);

@@ -194,6 +194,9 @@ h2 { font-weight: normal; }
 #minigame .prog { font-size: calc(15px * var(--s)); min-height: 1.3em; line-height: 1.3; text-align: center; }
 #minigame .status { display: flex; align-items: center; gap: calc(8px * var(--s)); width: 100%; }
 #minigame .status .prog { flex: 1; font-size: calc(14px * var(--s)); }
+#minigame .title.two, #minigame .status.two .prog { height: 2.6em; display: flex; align-items: center; justify-content: center; overflow: hidden; }   /* 3章: 題名と状況欄は 2 行ぶんで固定（1 行でも 2 行でもバーとボタンの位置が変わらない） */
+#minigame .status.two { flex: none; }
+#play.landscape #minigame .status.two .prog { font-size: calc(13px * var(--s)); }   /* 横長は欄が狭い（1 行 16 字）ので一回り小さく */
 #minigame .bar { width: 100%; height: calc(10px * var(--s)); border: var(--bw) solid var(--frame); flex: none; }
 #minigame .bar > div { height: 100%; background: var(--akane); }
 #minigame .row { display: flex; gap: calc(12px * var(--s)); align-items: center; }
