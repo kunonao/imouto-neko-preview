@@ -50,6 +50,7 @@
   let lastCmdAt = 0;
   let fadeAlpha = 0;
   let game = null;      // 実行中のミニゲーム（キー入力の受け口）
+  let pickerOpen = false;   // エンディング選択中（背景タップや Escape で閉じると進行が止まるので閉じない）
 
   const ui = {};
   ['app', 'title', 'play', 'stage', 'stage-wrap', 'objective', 'dialog', 'd-name', 'd-text', 'd-next', 'commands', 'minigame', 'panel', 'btn-menu',
@@ -146,7 +147,8 @@
   }
   function button(label, fn, cls) { const b = el('button', cls, label); b.onclick = fn; return b; }
 
-  function stopGame() { if (game && game.stop) game.stop(); game = null; }   // 動いているミニゲームのタイマーを止める（章の切り替え・タイトルへ のとき。止めないと裏で回り続け、終わったときに別の章へ結果を流し込む）
+  function stopGame() { if (game && game.stop) game.stop(); game = null; }
+  function endLater(ms, result, set) { const g = game; setTimeout(() => { if (game === g) endGame(result, set); }, ms); }   // 終了待ちの間に章が変わった（game が入れ替わった）ら流し込まない   // 動いているミニゲームのタイマーを止める（章の切り替え・タイトルへ のとき。止めないと裏で回り続け、終わったときに別の章へ結果を流し込む）
   function initTitle() {
     mode = 'title'; stopGame();
     ui['btn-continue'].classList.toggle('hidden', !loadProgress());
@@ -168,9 +170,10 @@
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, '今日の終わり方'));
     frag.appendChild(el('p', 'note', '今日の過ごし方で、いくつかの終わり方が開きました。どれにしますか'));
-    cands.forEach(n => frag.appendChild(button(seen.includes(n) ? `${n}（見た）` : `${n}　★まだ`, () => { closeMenu(); done(n); })));
+    cands.forEach(n => frag.appendChild(button(seen.includes(n) ? `${n}（見た）` : `${n}　★まだ`, () => { pickerOpen = false; closeMenu(); done(n); })));
     p.replaceChildren(frag);
     showScreen('play');
+    pickerOpen = true;
     ui.menu.classList.remove('hidden');
   }
   function enterPlay() {
@@ -230,6 +233,8 @@
     if (ev.cleared && params.get('hold') === '1') { mode = 'commands'; return; }   // 確認用: クリア画面に進まず最後の場面で止まる
     if (ev.cleared) {
       const next = E.chapterIndex + 1;
+      const route = E.state.ルート && E.state.ルート !== 'なし' ? E.state.ルート : '';
+      if (route) { rememberRoute(E.chapterIndex, route); E.runRoutes[E.chapterIndex] = route; }   // 保存より先に今回のルートを記録（章末で再読み込みしても「今回」のまま）
       saveFreshChapter(DATA.chapters[next] ? next : 0);   // 最後まで行ったら、はっけんを持ったまま1章から
       showChapterEnd();
       return;
@@ -260,7 +265,6 @@
     if (hasNext) {
       const c = E.counts();
       const route = E.state.ルート && E.state.ルート !== 'なし' ? E.state.ルート : '';
-      if (route) { rememberRoute(E.chapterIndex, route); E.runRoutes[E.chapterIndex] = route; }
       ui['ce-title'].textContent = E.chapter.title + '　クリア';
       // ここでは「どのルートだったか」だけ示す（何通りあるか・集まり具合はメニューの「エンディング」で）
       ui['ce-text'].textContent = (route ? `ルート「${route}」\n\n` : '') +
@@ -755,9 +759,11 @@
   function walkGame(p) {
     const seg = Number(p.区間) || 1;
     const carried = !!p.だっこ;
-    const gallery = p.gallery || '';   // 確認用（?gallery=walk）: 物と誘惑を道に並べて止める。'zoom' は 3 倍の一覧
+    const gallery = p.gallery || '';
+    const WALK_RESET = { よりみち: 'なし', よりみちさき: 'なし', 寄り道蝶: 'なし', 寄り道葉: 'なし', 寄り道草の穂: 'なし', 寄り道落ち葉: 'なし', 寄り道魚屋: 'なし', おくれ: 'なし', さきばしり: 'なし', みちあんない: 'なし' };   // 区間ごとの印（スキップ・だっこでは全部 なし に戻す）   // 確認用（?gallery=walk）: 物と誘惑を道に並べて止める。'zoom' は 3 倍の一覧
     const total = (Number(p.長さ) || 55) * 1000;
     if (seg === 1) walkMemo = { same: 0, walk: 0, replies: 0, detours: 0 };
+    else if (E.state.さんぽきろく) { try { walkMemo = Object.assign({ same: 0, walk: 0, replies: 0, detours: 0 }, JSON.parse(E.state.さんぽきろく)); } catch (e) { /* 壊れていれば捨てる */ } }   // 保存から戻ったときのため
     const F = { dash: seg >= 2, calls: seg >= 3 };
     const V = { cat: 18, ak: 20, dash: 34 };
     const t0 = Date.now();
@@ -766,7 +772,7 @@
     // ── 画面 ──
     const title = el('div', 'title two', '');   // 題名と状況欄は 2 行ぶんの高さで固定（文の行数でボタンが動かないように）
     const status = el('div', 'prog', '');
-    const skipBtn = button('スキップ', () => finish('ふつう'), 'small');
+    const skipBtn = button('スキップ', () => finish('ふつう', Object.assign({}, WALK_RESET)), 'small');
     const statusRow = el('div', 'status two'); statusRow.append(status);   // スキップは下の段（ボタンの間）へ。状況欄は幅いっぱい使う
     const bar = el('div', 'bar'); const fill = document.createElement('div'); fill.style.width = '0%'; bar.appendChild(fill);
     const bottom = el('div', 'row wide');
@@ -780,7 +786,7 @@
     function finish(grade, extra) {
       if (done) return;
       done = true; clearInterval(timer);
-      setTimeout(() => endGame('せいこう', Object.assign({ さんぽ: grade }, extra || {})), 300);
+      endLater(300, 'せいこう', Object.assign({ さんぽ: grade }, extra || {}));
     }
     const up = el('button', 'big', '▲ おく'), down = el('button', 'big', '▼ てまえ');
     const act = el('button', 'big hold', 'ダッシュ'); const gauge = el('div', 'gauge'); act.appendChild(gauge);
@@ -1114,13 +1120,13 @@
     }
     const KIND_NAME = { ちょう: '蝶', はち: '葉', くさのほ: '草の穂', おちば: '落ち葉', さかなや: '魚屋' };
     const PASS_LINE = { ちょう: '……蝶々。今日は、お姉ちゃんの道', はち: '……葉っぱが揺れてる。見送ります', くさのほ: '……草の穂。くしゃみ、出そう',おちば: '……落ち葉が、転がっていきました', さかなや: '……お魚のにおい。がまん、がまん' };
-    const flags = () => (carried ? { なきごえ: meows ? 'あり' : 'なし' } : {
+    const flags = () => (carried ? Object.assign({}, WALK_RESET, { よりみちけい: walkMemo.detours ? 'した' : 'なし', なきごえ: meows ? 'あり' : 'なし' }) : {
       よりみち: detours ? 'した' : 'なし', よりみちさき: detours ? (KIND_NAME[lastDetour] || 'なし') : 'なし',
       寄り道蝶: visited.ちょう ? 'した' : 'なし', 寄り道葉: visited.はち ? 'した' : 'なし', 寄り道草の穂: visited.くさのほ ? 'した' : 'なし', 寄り道落ち葉: visited.おちば ? 'した' : 'なし', 寄り道魚屋: visited.さかなや ? 'した' : 'なし',
       よりみちけい: walkMemo.detours ? 'した' : 'なし',   // 3 区間を通して寄り道があったか（finalize のあと）
       おくれ: (waits || waited) ? 'した' : 'なし', さきばしり: overtakes && route !== 'いけ' ? 'した' : 'なし', みちあんない: route === 'いけ' ? 'した' : 'なし',
     });
-    function finalize() { walkMemo.same += sameT; walkMemo.walk += walkT; walkMemo.replies += replies; walkMemo.detours += detours; }
+    function finalize() { walkMemo.same += sameT; walkMemo.walk += walkT; walkMemo.replies += replies; walkMemo.detours += detours; E.state.さんぽきろく = JSON.stringify(walkMemo); }   // 状態に入れて保存に載せる
 
     // ── 絵 ──
     const pix = (rows, x0, y0, pal) => rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] !== '.') rect(x0 + i, y0 + j, 1, 1, pal[r[i]]); });   // 1 文字 = 1 px
@@ -1247,7 +1253,7 @@
       E.visual.pc = typed; render();
       hint.textContent = mode === 'にくきゅう' ? 'エー（a）のキーを、肉球で' : (typed === target ? 'aoi' : `つぎ: ${target[typed.length] || ''}　（${typed || '　'}）`);
     };
-    const finish = r => { if (done) return; done = true; setTimeout(() => endGame(r), 700); };
+    const finish = r => { if (done) return; done = true; endLater(700, r); };
     const erase = () => { if (done || mode !== 'つめ') return; typed = typed.slice(0, -1); update(); };
     const press = ch => {
       if (done) return;
@@ -1283,7 +1289,7 @@
     const finish = ok => {
       if (done) return;
       done = true; clearInterval(timer); clearInterval(holdTimer);
-      setTimeout(() => endGame(ok ? 'せいこう' : 'しっぱい'), 500);
+      endLater(500, ok ? 'せいこう' : 'しっぱい');
     };
     const tick = () => {
       const t = Date.now() - started;
@@ -1300,7 +1306,7 @@
       if (count >= target) finish(true);
     };
     hold(btn, () => { press(); clearInterval(holdTimer); holdTimer = setInterval(press, 110); }, () => clearInterval(holdTimer));
-    game = { key: () => press() };
+    game = { key: () => press(), stop: () => { done = true; clearInterval(timer); clearInterval(holdTimer); } };
   }
   function puddingGame() {
     let angle = 180, dir = 0, done = false;
@@ -1329,7 +1335,7 @@
         done = true; dir = 0; angle = 0; E.visual.pudding = 0;
         clearInterval(loop);
         drawDial(); render();
-        setTimeout(() => endGame('せいこう'), 600);
+        endLater(600, 'せいこう');
         return;
       }
       drawDial(); render();
@@ -1340,6 +1346,7 @@
     game = {
       key: e => { if (e.key === 'ArrowLeft') dir = 1; else if (e.key === 'ArrowRight') dir = -1; },
       keyup: e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') dir = 0; },
+      stop: () => { done = true; clearInterval(loop); },
     };
     drawDial();
   }
@@ -1348,7 +1355,7 @@
   ui.dialog.addEventListener('click', advance);
   ui.stage.addEventListener('click', advance);
   document.addEventListener('keydown', e => {
-    if (!ui.menu.classList.contains('hidden')) { if (e.key === 'Escape') closeMenu(); return; }
+    if (!ui.menu.classList.contains('hidden')) { if (e.key === 'Escape' && !pickerOpen) closeMenu(); return; }
     if (game && game.key) { game.key(e); e.preventDefault(); return; }
     if (mode === 'dialog' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); advance(); }
     else if (mode === 'commands' && /^[1-9]$/.test(e.key)) { const b = ui.commands.querySelectorAll('button')[Number(e.key) - 1]; if (b) b.click(); }
@@ -1357,7 +1364,7 @@
   document.addEventListener('keyup', e => { if (game && game.keyup) game.keyup(e); });
   window.addEventListener('resize', fitCanvas);
   if (window.visualViewport) window.visualViewport.addEventListener('resize', fitCanvas);   // スマホのアドレスバーの出入り
-  ui.menu.addEventListener('click', e => { if (e.target === ui.menu) closeMenu(); });
+  ui.menu.addEventListener('click', e => { if (e.target === ui.menu && !pickerOpen) closeMenu(); });
 
   ui['btn-new'].onclick = () => startChapter(0);   // 周回の記録は空になる。はっけんのコレクションは残る
   ui['btn-continue'].onclick = () => {

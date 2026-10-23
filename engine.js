@@ -50,10 +50,11 @@
       const ch = this.chapters[i];
       if (!ch) throw new Error('章がない: ' + i);
       if (i === 0) { this.runFound = {}; this.runSpecial = {}; this.runCleared = {}; this.runRoutes = {}; this.hints = 0; this.ending = ''; this.runAt = {}; }   // 新しい周回
-      else if (this.runAt[i]) this.setRun(copyRun(this.runAt[i]));   // 章をえらび直した: その章を始めた時点へ巻き戻す
+      else if (this.runAt[i]) { this.setRun(copyRun(this.runAt[i])); for (const k of Object.keys(this.runAt)) if (Number(k) > i) delete this.runAt[k]; }   // 章をえらび直した: その章を始めた時点へ巻き戻し、それより後の章の記録は捨てる（やり直しの成果を次章で上書きしない）
       this.runAt[i] = copyRun(this.getRun());
       this.chapterIndex = i;
       this.chapter = ch;
+      this.hintMode = false;   // ヒントの表示状態は章をまたがない
       this.state = Object.assign({}, ch.initial);
       // この周回のはっけんを状態として見せる（c1.げんこうほうかい:すみ など）
       for (const k of Object.keys(this.runFound)) this.state[k] = 'すみ';
@@ -271,7 +272,9 @@
       this.chapterIndex = i;
       this.chapter = this.chapters[i];
       this.state = Object.assign({}, this.chapter.initial, snap.state);
-      this.visual = Object.assign(freshVisual(), snap.visual || {});
+      this.visual = Object.assign(freshVisual(), snap.visual && typeof snap.visual === 'object' ? snap.visual : {});
+      { const fv = freshVisual(); for (const k of ['props', 'fallen', 'hidden', 'spot', 'pose']) if (!this.visual[k] || typeof this.visual[k] !== 'object') this.visual[k] = fv[k]; }   // 壊れた保存でも描画で落ちない
+      this.hintMode = false;
       this.restoreRun(snap);
       this.queue = []; this.pending = []; this.waitingGame = null; this.cleared = false;
       return true;
