@@ -26,6 +26,10 @@
 }
 
 * { box-sizing: border-box; }
+/* ゲームらしく、文字はドラッグや長押しで選べない（コピー防止ではなく見た目と操作感のため。iOS の長押しメニューも出さない）。クレジットだけ選べる */
+#app, #menu, #card, #toast { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: default; }
+.selectable, .selectable * { user-select: text; -webkit-user-select: text; -webkit-touch-callout: default; cursor: auto; }
+button, a { cursor: pointer; }
 html, body {
   margin: 0;
   height: 100%;

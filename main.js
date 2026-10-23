@@ -435,13 +435,15 @@
     const p = ui['menu-panel'];
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, 'クレジット'));
-    frag.appendChild(el('p', 'small', '「妹はネコ」は琴葉茜・琴葉葵の非公式ファンゲームです。キャラクターの権利は権利者に帰属します'));
+    const box = el('div', 'selectable');   // クレジットだけは文字を選んで写せる（ほかの画面はゲームらしく選べない）
+    frag.appendChild(box);
+    box.appendChild(el('p', 'small', '「妹はネコ」は琴葉茜・琴葉葵の非公式ファンゲームです。キャラクターの権利は権利者に帰属します'));
     const ul = el('ul');
     const li2 = el('li', 'small', 'フォント: PixelMplus（M+ FONTS PROJECT）— M+ FONT LICENSE　');
     const a2 = el('a', null, 'ライセンス全文'); a2.href = 'fonts/LICENSE-PixelMplus-mplus.txt'; a2.target = '_blank'; a2.rel = 'noopener'; li2.appendChild(a2);
     ul.append(li2);
-    frag.appendChild(ul);
-    frag.appendChild(el('p', 'small', 'フォントは台本で使う文字だけに絞った WOFF2 に変換して同梱しています（元のフォントは変更していません）'));
+    box.appendChild(ul);
+    box.appendChild(el('p', 'small', 'フォントは台本で使う文字だけに絞った WOFF2 に変換して同梱しています（元のフォントは変更していません）'));
     frag.appendChild(button('とじる', closeMenu));
     p.replaceChildren(frag);
     ui.menu.classList.remove('hidden');
