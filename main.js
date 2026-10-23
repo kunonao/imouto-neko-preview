@@ -385,7 +385,7 @@
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, `はっけん ${c.found} / ${c.total}　とくべつ ${c.special} / ${c.specialTotal}`));
     frag.appendChild(el('p', 'note', `この周回で ${c.run}。「（前の周回）」は、前に見つけたもの`));
-    const ul = el('ul');
+    const ul = el('ul', 'two');   // 26 件を 2 列で（板の高さに収める）
     E.discoveryList().forEach(d => {   // 今回の周回で見つけた / 前の周回だけ（薄く）/ まだ
       const cls = !d.name ? 'todo' : ((d.run ? '' : 'past ') + (d.special ? 'special' : '')).trim();
       const li = el('li', cls, d.name ? (d.special ? '★ ' : '') + d.name + (d.run ? '' : '（前の周回）') : '？？？');
@@ -706,6 +706,7 @@
     const sl = Math.min(vw / DESIGN.landscape[0], vh / DESIGN.landscape[1]);
     const landscape = sl > sp;
     const s = Math.min(landscape ? sl : sp, 1.6);
+    document.documentElement.style.setProperty('--sm', String(Math.max(0.1, Math.min(sp, 1.6))));   // タイトル・章の終わり・メニュー・カードの倍率（縦長の設計に対する比。拡大してもスクロールを出さない）
     ui.play.classList.toggle('portrait', !landscape);
     ui.play.classList.toggle('landscape', landscape);
     ui.play.style.setProperty('--s', String(Math.max(0.1, s)));   // 下限は付けない（付けると枠がはみ出し、ボタンを押したときに中がスクロールしてしまう）
@@ -1394,6 +1395,7 @@
   { const boot = loadProgress(); if (boot) { E.found = Object.assign({}, boot.found || {}); E.special = Object.assign({}, boot.special || {}); } }   // はっけんのコレクションは周回をまたいで残す（再読み込み後の「はじめから」や ?start= でも。周回の記録は つづきから のときだけ戻す）
   (params.get('found') || '').split(',').filter(Boolean).forEach(k => { E.found[k] = 'debug'; E.runFound[k] = 'debug'; });   // 確認用: ?found=c1.だっこ で前の章のはっけんを持って始める（だっこの区間など）
   const startAt = params.get('start');   // 確認用: ?start=0 で1章から直接
+  fitCanvas();   // タイトルの倍率（--sm）も最初に決める
   if (startAt !== null && DATA.chapters[Number(startAt)]) startChapter(Number(startAt));
   else initTitle();
   if (params.get('gallery') === 'walk') {   // 確認用: 3章の物と誘惑を道に並べて見る（&seg=1|2|3、&zoom=1 で 3 倍の一覧）

@@ -71,14 +71,18 @@ button:active, button:focus-visible { border-color: var(--aoi); color: #fff; out
 button.big { min-width: 260px; font-size: 20px; }
 button.ghost { opacity: .35; pointer-events: none; }
 
-/* ── タイトル・章の終わり（決め打ちしない簡単な画面。窓が低いときは中でスクロール） ── */
-#title, #chapter-end { align-items: center; justify-content: center; text-align: center; flex: 1; min-height: 0; overflow-y: auto; }
-h1 { font-size: 32px; font-weight: normal; letter-spacing: .1em; margin: 0; }
+/* ── タイトル・章の終わり・メニュー（遊ぶ画面と同じく決め打ち + 倍率。倍率 --sm は縦長の設計 390×632 に対する比で、html に置く）
+      どんなに拡大してもスクロールは出さない（遊ぶ画面が倍率で縮むのと同じ扱い）── */
+:root { --sm: 1; }
+#title, #chapter-end { align-items: center; justify-content: center; text-align: center; flex: 1; min-height: 0; overflow: hidden; font-size: calc(16px * var(--sm)); gap: calc(8px * var(--sm)); }
+h1 { font-size: calc(32px * var(--sm)); font-weight: normal; letter-spacing: .1em; margin: 0; }
 h2 { font-weight: normal; }
-.sub { opacity: .8; margin: 0 0 12px; }
-.note { font-size: 12px; opacity: .7; margin-top: 16px; }
-.col { display: flex; flex-direction: column; gap: 8px; align-items: center; }
-#title .col button.big { min-height: 44px; padding: 6px 12px; font-size: 18px; }
+.sub { opacity: .8; margin: 0 0 calc(12px * var(--sm)); font-size: calc(14px * var(--sm)); }
+.note { font-size: calc(12px * var(--sm)); opacity: .7; margin-top: calc(16px * var(--sm)); }
+.col { display: flex; flex-direction: column; gap: calc(8px * var(--sm)); align-items: center; }
+#title .col button.big, #chapter-end button.big { min-height: calc(44px * var(--sm)); min-width: calc(260px * var(--sm)); padding: calc(6px * var(--sm)) calc(12px * var(--sm)); font-size: calc(18px * var(--sm)); }
+#chapter-end h2 { font-size: calc(22px * var(--sm)); margin: 0; }
+#ce-text { font-size: calc(15px * var(--sm)); margin: 0; }
 
 /* ── 遊ぶ画面（決め打ち + 倍率 --s） ── */
 #play {
@@ -219,24 +223,28 @@ h2 { font-weight: normal; }
   position: fixed; inset: 0; z-index: 10;
   background: rgba(0, 0, 0, .7);
   display: flex; align-items: center; justify-content: center;
-  padding: 16px;
+  padding: calc(8px * var(--sm));
 }
+/* メニューの板は設計 360×600 を --sm で縮める。中身はこの高さに収まる前提（長い一覧は 2 列）。スクロールは出さない */
 .panel {
-  padding: 16px;
-  width: min(100%, 420px);
-  max-height: 90vh;
-  max-height: 90dvh;
-  overflow: auto;
-  display: flex; flex-direction: column; gap: 8px;
+  padding: calc(14px * var(--sm));
+  width: calc(360px * var(--sm));
+  max-height: calc(600px * var(--sm));
+  overflow: hidden;
+  display: flex; flex-direction: column; gap: calc(8px * var(--sm));
+  font-size: calc(15px * var(--sm)); line-height: 1.4;
 }
-.panel h2 { margin: 0 0 4px; font-size: 20px; }
-.panel ul { margin: 0; padding-left: 1.4em; }
+.panel h2 { margin: 0 0 calc(4px * var(--sm)); font-size: calc(20px * var(--sm)); }
+.panel ul { margin: 0; padding-left: 1.3em; font-size: calc(13px * var(--sm)); }
+.panel ul.two { columns: 2; column-gap: calc(12px * var(--sm)); }   /* はっけん の一覧（26 件）は 2 列で収める */
+.panel li { break-inside: avoid; }
 .panel li.todo { opacity: .5; }
 .panel li.past { opacity: .65; }   /* 前の周回で見たもの（今回の周回のものより薄く） */
 .panel li.special { color: #ffd080; }
-.panel button { min-height: 44px; }
+.panel button { min-height: calc(40px * var(--sm)); padding: calc(6px * var(--sm)) calc(10px * var(--sm)); font-size: calc(16px * var(--sm)); }
 .panel a { color: var(--aoi); }
-.panel .small { font-size: 13px; opacity: .8; }
+.panel .small { font-size: calc(12px * var(--sm)); opacity: .8; margin: 0; }
+.panel .note { margin-top: 0; }
 
 #card {
   position: fixed; inset: 0; z-index: 20;
@@ -246,9 +254,9 @@ h2 { font-weight: normal; }
   animation: cardin .35s ease-out;
 }
 @keyframes cardin { from { opacity: 0; } to { opacity: 1; } }
-#card-small { font-size: 20px; letter-spacing: .2em; opacity: .85; }
-#card-label { font-size: 14px; opacity: .6; margin-top: 12px; }
-#card-big { font-size: 32px; line-height: 1.4; border-top: 2px solid var(--frame); border-bottom: 2px solid var(--frame); padding: 12px 20px; }
+#card-small { font-size: calc(20px * var(--sm)); letter-spacing: .2em; opacity: .85; }
+#card-label { font-size: calc(14px * var(--sm)); opacity: .6; margin-top: calc(12px * var(--sm)); }
+#card-big { font-size: calc(32px * var(--sm)); line-height: 1.4; border-top: 2px solid var(--frame); border-bottom: 2px solid var(--frame); padding: calc(12px * var(--sm)) calc(20px * var(--sm)); }
 #card .card-hint { font-size: 12px; opacity: .45; margin-top: 24px; }
 #card.locked .card-hint { opacity: 0; }   /* 最初の 1.5 秒は「タップで進む」を出さない（まだ閉じられないので） */
 
