@@ -146,13 +146,15 @@
   }
   function button(label, fn, cls) { const b = el('button', cls, label); b.onclick = fn; return b; }
 
+  function stopGame() { if (game && game.stop) game.stop(); game = null; }   // 動いているミニゲームのタイマーを止める（章の切り替え・タイトルへ のとき。止めないと裏で回り続け、終わったときに別の章へ結果を流し込む）
   function initTitle() {
-    mode = 'title'; game = null;
+    mode = 'title'; stopGame();
     ui['btn-continue'].classList.toggle('hidden', !loadProgress());
     showScreen('title');
   }
 
   function startChapter(i) {
+    stopGame();
     E.startChapter(i);
     // 終章: 条件を満たしたエンディングが複数あれば、どれにするか選んでもらう
     const cands = E.chapter.candidates && E.chapter.candidates.length ? E.candidates() : [];
