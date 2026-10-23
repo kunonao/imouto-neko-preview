@@ -379,7 +379,7 @@
     const routesSeen = seenRoutes(), totalRoutes = ROUTES.reduce((n, r) => n + r.length, 0);
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, `ルート ${routesSeen.length} / ${totalRoutes}`));
-    frag.appendChild(legend('章のクリアのしかた　'));
+    frag.appendChild(legend());   // 凡例だけ（前置きを付けると 2 行になる）
     DATA.chapters.forEach((ch, ci) => {
       if (!ROUTES[ci].length) return;
       const ul = el('ul');
