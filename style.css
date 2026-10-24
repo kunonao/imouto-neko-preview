@@ -253,6 +253,7 @@ h2 { font-weight: normal; }
 .panel li.past { opacity: .65; }   /* 前の周回で見たもの（今回の周回のものより薄く） */
 .panel li.special { color: #ffd080; }
 .panel button { min-height: calc(40px * var(--sm)); padding: calc(6px * var(--sm)) calc(10px * var(--sm)); font-size: calc(16px * var(--sm)); }
+.panel button.danger { margin-top: calc(20px * var(--sm)); font-size: calc(13px * var(--sm)); min-height: calc(32px * var(--sm)); opacity: .75; }   /* 記録を消す・消す・はい: 離して小さく（押し間違いを防ぐ） */
 .panel a { color: var(--aoi); }
 .panel .small { font-size: calc(12px * var(--sm)); opacity: .8; margin: 0; }
 .panel .note { margin-top: 0; }

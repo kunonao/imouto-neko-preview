@@ -377,7 +377,35 @@
     frag.appendChild(button(`クリアルート　${routesSeen.length} / ${totalRoutes}`, showRoutes));
     frag.appendChild(button(`エンディング　${seen.length} / ${ENDINGS.length}`, showEndings));
     frag.appendChild(mode === 'title' ? button('とじる', closeMenu) : button('もどる', openMenu));   // タイトルからは とじる
+    frag.appendChild(button('記録を消す', showResetConfirm, 'danger'));   // 記録の入口の一番下（タイトルからも遊ぶ途中からも来られる）。うっかり押さないよう もどる の下に離して置く
     p.replaceChildren(frag);
+  }
+  // 記録を消す: 消す／やめる → はい／いいえ の 2 回確認してから（押し間違いの救済。ユーザー要望 2026-10-24）。せってい（文字・衣装）は残す
+  function showResetConfirm() {
+    const p = ui['menu-panel'];
+    const frag = document.createDocumentFragment();
+    frag.appendChild(el('h2', null, '記録を消す'));
+    frag.appendChild(el('p', 'note', 'はっけん・クリアルート・エンディングの記録と、つづきから を消します。元には戻せません。文字と衣装のせっていは残ります'));
+    frag.appendChild(button('やめる', showMemories));
+    frag.appendChild(button('消す', showResetFinal, 'danger'));
+    p.replaceChildren(frag);
+  }
+  function showResetFinal() {
+    const p = ui['menu-panel'];
+    const frag = document.createDocumentFragment();
+    frag.appendChild(el('h2', null, '本当に消しますか？'));
+    frag.appendChild(el('p', 'note', '消した記録は、元に戻せません'));
+    frag.appendChild(button('いいえ', showMemories));
+    frag.appendChild(button('はい', resetRecords, 'danger'));
+    p.replaceChildren(frag);
+  }
+  function resetRecords() {
+    for (const k of [SAVE_KEY, ENDINGS_KEY, ROUTES_KEY]) { try { localStorage.removeItem(k); } catch (e) { /* 保存できない環境 */ } }
+    stopGame();
+    E.found = {}; E.special = {}; E.setRun({}); E.actions = 0; E.runAt = {};   // 手元のコレクションと周回の記録も空に
+    closeMenu();
+    initTitle();
+    toast('記録を消しました');
   }
   function showSettings() {
     const p = ui['menu-panel'];
@@ -522,11 +550,12 @@
         つくえはし: [128, 104],   // 1章: 机の右端（小物の山の横。x 120〜135）。おとす のとき !いち で寄る（状態は つくえ のまま）。マグの左の定位置から右端の小物には手が届かないため（ユーザー指摘 2026-10-24）
         つくえあしもと: [44, 140], ソファあしもと: [186, 140],   // 茜の足元（机の前・ソファの前）
         みずのまえ: [86, 140],   // 床の水の器（x 72〜80）の右隣。1章で一口なめる
+        ごはんまえ: [56, 140],   // 4章: 床の小皿（x 64〜72）の左隣。晩ごはん（キッチンと同じ名前）
         つくえのひざ: [32, 106],   // 机の後ろ、茜の膝の上。頭だけ机から出る（render で机より先に描く）
       },
       葵人間: { ゆか: [168, 140], ソファ: [172, 132], ソファちかく: [178, 132], ソファぴったり: [188, 132], ネコのよこ: [156, 140] },   // 終章: 甘さで距離が変わる。ネコのよこ = 床のネコ茜のそば
       defaults: ['マグ', 'ノートPC', 'ペンたて', 'ほん', 'けしごむ'],
-      props: { マグ: [90, 104], ノートPC: [42, 104], ペンたて: [115, 104], ほん: [100, 104], けしごむ: [110, 104], スマホ: [68, 104], かつおぶし: [60, 140], みず: [72, 140], スツール: [128, 140] },
+      props: { マグ: [90, 104], ノートPC: [42, 104], ペンたて: [115, 104], ほん: [100, 104], けしごむ: [110, 104], スマホ: [68, 104], かつおぶし: [60, 140], みず: [72, 140], ごはんの小皿: [64, 140], スツール: [128, 140] },   // ごはんの小皿 = 4章の晩ごはん（みず の左）
       // 4章のおそろいのマグ: 置き場所は状態（月いち／日いち）で決まる
       propPos: { つきのマグ: () => (E.state.月いち === '葵側' ? [118, 104] : [84, 104]), たいようのマグ: () => (E.state.日いち === '葵側' ? [126, 104] : [92, 104]) },
       floorDrop: { ペンたて: [116, 140], けしごむ: [108, 140], ほん: [98, 140], マグ: [92, 140], スマホ: [92, 140] },
