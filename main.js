@@ -66,7 +66,7 @@
   function saveProgress() { store.set(SAVE_KEY, { snap: E.snapshot() }); }
   function saveFreshChapter(i) {
     const s = E.snapshot();
-    store.set(SAVE_KEY, { snap: { v: 1, chapterIndex: i, fresh: true, found: s.found, special: s.special, runFound: s.runFound, runSpecial: s.runSpecial, runCleared: s.runCleared, runRoutes: s.runRoutes, hints: s.hints, runAt: s.runAt } });
+    store.set(SAVE_KEY, { snap: { v: 1, chapterIndex: i, fresh: true, found: s.found, special: s.special, runFound: s.runFound, runSpecial: s.runSpecial, runCleared: s.runCleared, runRoutes: s.runRoutes, hints: s.hints, actions: s.actions, runAt: s.runAt } });
   }
   function seenEndings() { const a = store.get(ENDINGS_KEY); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; }
   function rememberEnding(name) { const a = seenEndings(); if (name && !a.includes(name)) { a.push(name); store.set(ENDINGS_KEY, a); } }
@@ -1183,6 +1183,7 @@
       寄り道蝶: visited.ちょう ? 'した' : 'なし', 寄り道葉: visited.はち ? 'した' : 'なし', 寄り道草の穂: visited.くさのほ ? 'した' : 'なし', 寄り道落ち葉: visited.おちば ? 'した' : 'なし', 寄り道魚屋: visited.さかなや ? 'した' : 'なし',
       よりみちけい: walkMemo.detours ? 'した' : 'なし',   // 3 区間を通して寄り道があったか（finalize のあと）
       おくれ: (waits || waited) ? 'した' : 'なし', さきばしり: overtakes && route !== 'いけ' ? 'した' : 'なし', みちあんない: route === 'いけ' ? 'した' : 'なし',
+      寄り道回数: String(detours),   // かしこいネコの手数に足す（engine。遅れ・先走りは数えない。Codex 第42回）
     });
     function finalize() { walkMemo.same += sameT; walkMemo.walk += walkT; walkMemo.replies += replies; walkMemo.detours += detours; E.state.さんぽきろく = JSON.stringify(walkMemo); }   // 状態に入れて保存に載せる
 

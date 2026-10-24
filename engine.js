@@ -8,12 +8,14 @@
   //   ネコ        = その周回で見つけた割合がいちばん高い性格（割合 40% 以上、3個以上）。同率は先のタグ。なければ ふつう
   //   トップ.◯◯  = その性格が同率1位のとき あり（終章の候補に使う）
   //   すなお      = あまえんぼ を 8 個以上（終章の台本では、さらに 4章で頭を預けたこと c4.あずけた を条件にする）
-  //   かしこい    = いたずら が 0 個で、1〜4章を完走（台本では、さらに 1章の通常解 c1.おちゃ を条件にする）。ヒントは条件にしない
+  //   かしこい    = お姉ちゃんに迷惑をかけず（いたずら 0 個）、寄り道少なく（手数 26 以下）、1〜4章を完走（2026-10-24 ユーザー決定。Codex 第42回）
+  //                 手数 = その周回で実行したコマンドの数（ヒントは数えない）＋ よみちさんぽで寄り道した回数。台詞送り・メニュー・ミニゲームの中の操作は数えない
+  //                 手数を持たない古い保存の周回は判定しない（null。0 扱いにすると誤って届くため）
   //   とくべつ    = その周回で見つけた とくべつなはっけん の数（4 で 姉もネコ）
   //   完走        = 1〜4章をこの周回でクリアしたら 完走、でなければ 途中
   //   ヒント      = ヒントコマンドを見た回数（会話の中の誘導は数えない）
   const TAGS = ['くいしんぼ', 'あまえんぼ', 'いたずら', 'ねぼすけ', 'おしゃべり', 'かんさつ'];
-  const RULE = { 割合: 0.4, 最低: 3, すなお: 8 };
+  const RULE = { 割合: 0.4, 最低: 3, すなお: 8, 手数: 26 };
   const matches = (conds, state) => conds.every(([k, v, neg]) => neg ? String(state[k]) !== v : String(state[k]) === v);
   const parseCond = t => { const m = t.match(/^([^:!]+)(!?):(.+)$/); return m ? (m[2] ? [m[1], m[3], '!'] : [m[1], m[3]]) : [t, '']; };
   const copyRun = r => JSON.parse(JSON.stringify(r));
@@ -31,6 +33,7 @@
       this.runCleared = {}; // この周回でクリアした章
       this.runRoutes = {};  // この周回の章ごとのルート（章番号 -> ルート名。おもいで で「今回」と「前の周回」を分ける）
       this.hints = 0;     // この周回でヒントを見た回数
+      this.actions = 0;   // この周回の手数（かしこいネコの判定。null = 古い保存で不明）
       this.ending = '';   // 到達したエンディング名（!エンド）
       this.runAt = {};    // 章を始めた時点の周回の記録（章をえらび直したとき、そこへ巻き戻す）
       this.chapterIndex = -1;
@@ -49,7 +52,7 @@
     startChapter(i, restart) {   // restart = 途中の章から新しい周回として始める（時間をえらぶ）
       const ch = this.chapters[i];
       if (!ch) throw new Error('章がない: ' + i);
-      if (i === 0 || restart) { this.runFound = {}; this.runSpecial = {}; this.runCleared = {}; this.runRoutes = {}; this.hints = 0; this.ending = ''; this.runAt = {}; }   // 新しい周回（あさ から、または 時間をえらぶ で途中から。前の章は通っていない扱い）
+      if (i === 0 || restart) { this.runFound = {}; this.runSpecial = {}; this.runCleared = {}; this.runRoutes = {}; this.hints = 0; this.actions = 0; this.ending = ''; this.runAt = {}; }   // 新しい周回（あさ から、または 時間をえらぶ で途中から。前の章は通っていない扱い）
       else if (this.runAt[i]) { this.setRun(copyRun(this.runAt[i])); for (const k of Object.keys(this.runAt)) if (Number(k) > i) delete this.runAt[k]; }   // 章をえらび直した: その章を始めた時点へ巻き戻し、それより後の章の記録は捨てる（やり直しの成果を次章で上書きしない）
       this.runAt[i] = copyRun(this.getRun());
       this.chapterIndex = i;
@@ -72,8 +75,9 @@
     // ミニゲームの分岐の中で宣言されたはっけんは、その結果が出たときに付ける
     enter(block) { this.pending.push(...block.discoveries.filter(d => !d.branch && !d.inline)); return block.items.slice(); }
 
-    getRun() { return { runFound: this.runFound, runSpecial: this.runSpecial, runCleared: this.runCleared, runRoutes: this.runRoutes, hints: this.hints, ending: this.ending }; }
-    setRun(r) { this.runFound = r.runFound || {}; this.runSpecial = r.runSpecial || {}; this.runCleared = r.runCleared || {}; this.runRoutes = r.runRoutes || {}; this.hints = Number(r.hints) || 0; this.ending = r.ending || ''; }
+    getRun() { return { runFound: this.runFound, runSpecial: this.runSpecial, runCleared: this.runCleared, runRoutes: this.runRoutes, hints: this.hints, actions: this.actions, ending: this.ending }; }
+    setRun(r) { this.runFound = r.runFound || {}; this.runSpecial = r.runSpecial || {}; this.runCleared = r.runCleared || {}; this.runRoutes = r.runRoutes || {}; this.hints = Number(r.hints) || 0; this.actions = Number.isFinite(r.actions) ? r.actions : null; this.ending = r.ending || ''; }
+    addActions(n) { if (this.actions !== null) this.actions += n; }
 
     // エンディング判定用の状態（とくべつ / ネコ / トップ.◯◯ / かず.◯◯ / ヒント / すなお / かしこい / 完走 / ふつう）
     endingState() {
@@ -96,7 +100,8 @@
       s.すなお = (counts.あまえんぼ || 0) >= RULE.すなお ? 'あり' : 'なし';
       const done = this.chapters.slice(0, -1).every((_, i) => this.runCleared[i]);
       s.完走 = done ? '完走' : '途中';
-      s.かしこい = done && !(counts.いたずら) ? 'あり' : 'なし';
+      s.手数 = this.actions === null ? '不明' : String(this.actions);
+      s.かしこい = done && !(counts.いたずら) && this.actions !== null && this.actions <= RULE.手数 ? 'あり' : 'なし';
       return s;
     }
 
@@ -137,7 +142,7 @@
       if (this.busy()) throw new Error('行動の途中');
       const b = this.blocksFor(key).find(x => matches(x.conds, this.state));
       if (!b) return false;
-      if (key === 'ヒント') this.hints++;
+      if (key === 'ヒント') this.hints++; else this.addActions(1);
       this.hintMode = key === 'ヒント';   // ヒントの行は葵の心の声ではない（話者名を出さない・音声も作らない）
       this.pending = [];
       this.queue = this.enter(b);
@@ -150,6 +155,7 @@
         const r = input && input.result;
         if (!r) return { type: 'minigame', name: this.waitingGame.name, params: this.waitingGame.params };
         if (input.set) Object.assign(this.state, input.set);   // ミニゲームの成績など（例: さんぽ=ぴったり）
+        if (input.set && Number(input.set.寄り道回数) > 0) this.addActions(Number(input.set.寄り道回数));   // よみちさんぽの寄り道も手数
         const g = this.waitingGame;
         this.pending.push(...((g.branchDisc && g.branchDisc[r]) || []));
         this.queue.unshift(...(g.branches[r] || []));
@@ -260,14 +266,14 @@
 
     snapshot() {
       return { v: 1, chapterIndex: this.chapterIndex, state: this.state, visual: this.visual, found: this.found, special: this.special,
-        runFound: this.runFound, runSpecial: this.runSpecial, runCleared: this.runCleared, runRoutes: this.runRoutes, hints: this.hints, ending: this.ending, runAt: this.runAt };
+        runFound: this.runFound, runSpecial: this.runSpecial, runCleared: this.runCleared, runRoutes: this.runRoutes, hints: this.hints, actions: this.actions, ending: this.ending, runAt: this.runAt };
     }
 
     // コレクションと周回の記録を戻す（章の頭から始めるとき用）
     restoreRun(snap) {
       this.found = Object.assign({}, snap.found || {});
       this.special = Object.assign({}, snap.special || {});
-      this.setRun(copyRun({ runFound: snap.runFound, runSpecial: snap.runSpecial, runCleared: snap.runCleared, runRoutes: snap.runRoutes, hints: snap.hints, ending: snap.ending }));
+      this.setRun(copyRun({ runFound: snap.runFound, runSpecial: snap.runSpecial, runCleared: snap.runCleared, runRoutes: snap.runRoutes, hints: snap.hints, actions: snap.actions, ending: snap.ending }));
       this.runAt = copyRun(snap.runAt || {});
     }
 

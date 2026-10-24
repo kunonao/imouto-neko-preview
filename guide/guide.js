@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   const $ = s => document.querySelector(s);
+  const zen = s => String(s).replace(/(?<![0-9０-９.\/:])([0-9])(?![0-9０-９.\/:])/g, d => String.fromCharCode(d.charCodeAt(0) + 0xFEE0));   // 本文の書き方に合わせ、1 桁の数字だけ全角（2 桁以上は半角）
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
   // ---------- 反転（タップでも開く。開いたものは、スクロールで画面から外れて 1 秒たつと隠し直す） ----------
@@ -87,8 +88,8 @@
       const tr = el('tr');
       tr.appendChild(el('td', null, ED[t]));
       const td = el('td'); td.appendChild(el('span', 'tag ' + t, t)); tr.appendChild(td);
-      tr.appendChild(el('td', null, `${total}個`));
-      tr.appendChild(el('td', null, `${need}個〜`));
+      tr.appendChild(el('td', null, zen(`${total}個`)));
+      tr.appendChild(el('td', null, zen(`${need}個〜`)));
       table.appendChild(tr);
     });
   }
@@ -113,7 +114,7 @@
   perChapter.forEach((list, ci) => {
     const det = el('details', 'disc-ch');
     const normal = list.filter(x => !x.d.special).length;
-    det.appendChild(el('summary', null, `${chapters[ci].title}（${normal}個 ＋ ★${list.length - normal}）`));
+    det.appendChild(el('summary', null, zen(`${chapters[ci].title}（${normal}個 ＋ ★${list.length - normal}）`)));
     const table = el('table', 'disc-table');
     const head = el('tr');
     ['はっけん', '見つけかた', '性格'].forEach(h => head.appendChild(el('th', null, h)));
@@ -127,8 +128,8 @@
       const how = hide ? el('span', 'hanten') : td;
       const where = d.where || b.key || '';
       const cond = [condText(b), EXTRA[key]].filter(Boolean).join('・');
-      if (where && where !== 'ついていく') how.appendChild(document.createTextNode(where + (cond ? `（${cond}）` : '')));
-      if (d.hint) how.appendChild(el('span', 'hint', d.hint));
+      if (where && where !== 'ついていく') how.appendChild(document.createTextNode(zen(where + (cond ? `（${cond}）` : ''))));
+      if (d.hint) how.appendChild(el('span', 'hint', zen(d.hint)));
       else if (!where || where === 'ついていく') how.appendChild(el('span', 'hint', 'よみちさんぽで'));
       if (hide) { td.appendChild(how); makeHanten(how); }
       tr.appendChild(td);
