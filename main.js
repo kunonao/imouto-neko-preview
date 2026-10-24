@@ -821,7 +821,7 @@
     if (ap && akaneCat) drawSprite('cat_akane', ap[0], ap[1]);                                 // 隠しED: ネコの茜
     drawProps(L);
     if (gp && !onLap) drawSprite(sp, gp[0], gp[1]);
-    if (v.pose.茜 === 'なでる' && gp) drawHeart(gp[0] + 10, gp[1] - 22);
+    if (v.pose.茜 === 'なでる' && gp) drawHeart(gp[0], gp[1] - 22);   // 撫でられている側の頭の真上（右へずらすと、ソファで隣に座る茜の髪に重なる。ユーザー指摘 2026-10-25）
     if (fadeAlpha > 0) rect(0, 0, 256, 160, `rgba(0,0,0,${fadeAlpha})`);
   }
   // 遊ぶ画面は決め打ちの大きさ（縦長 390×632、横長 896×392。内訳は style.css の先頭）を、見えている領域に収まる倍率で縮める
