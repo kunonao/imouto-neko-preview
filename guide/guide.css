@@ -91,7 +91,7 @@ ul.dot > li::before { content: "・"; position: absolute; left: 0; color: var(--
 
 /* スクショ */
 .shot { margin: 12px 0 16px; text-align: center; }
-.shot img { width: 512px; image-rendering: pixelated; border: 3px solid #fff; outline: 1px solid #ccc; box-shadow: 3px 3px 0 #f6c6d6; }
+.shot img { width: 512px; height: auto; aspect-ratio: 256 / 160; image-rendering: pixelated; border: 3px solid #fff; outline: 1px solid #ccc; box-shadow: 3px 3px 0 #f6c6d6; }
 .shot figcaption { font-size: 12px; color: #777; margin-top: 4px; }
 
 /* チャート */
@@ -121,7 +121,7 @@ table.need td:nth-child(4) { font-weight: bold; color: #e0002a; }
 .hanten::selection, .hanten *::selection { color: var(--ink); background: #ffe08a; }
 .hanten.open { color: inherit; background: #fffdf0; cursor: auto; }
 .hanten:not(.open) b, .hanten:not(.open) strong, .hanten:not(.open) .who { color: #fff; background: transparent; }
-.hanten:not(.open) img, .hanten:not(.open) .tsukkomi, .hanten:not(.open) .shot { display: none; }
+.hanten:not(.open) img, .hanten:not(.open) .tsukkomi, .hanten:not(.open) .shot { visibility: hidden; }   /* 場所は最初から確保（開いた瞬間に画像の分だけ下が飛ばないように） */
 .hanten:not(.open) ul.dot > li::before { color: #fff; }
 .hanten:not(.open) .hint { color: transparent; }
 .hanten:focus-visible { outline: 2px solid var(--blue); }
