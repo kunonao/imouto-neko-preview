@@ -1339,36 +1339,73 @@
     btn.onpointerdown = e => { e.preventDefault(); btn.setPointerCapture(e.pointerId); down(); };
     btn.onpointerup = btn.onpointercancel = () => up();
   }
+  // 1章 キーボードれんだ。押した回数だけ数える（ユーザー 2026-10-24「押し回数でカウント、まあまあシビアに、やりすぎ厳禁」。Codex 第39回で 25 回／5 秒）
+  //   指は何本でも、PC は別のキーの交互押しも 1 回ずつ（長押し・キーリピートは数えない）。台本の 長押し=可 のときだけ自動連打を残す
+  //   時計は最初の 1 回目から。メニュー中・タブが隠れている間は止まり、その間の入力も数えない。期限の判定は入力ごとにも行う（タイマーの遅れで期限後の入力が通らないように）
   function kbGame(p) {
-    const target = Number(p.目標) || 15, limit = 5000;
-    let count = 0, started = 0, timer = null, holdTimer = null, done = false, pausedAt = 0;
+    const target = Math.max(1, Math.floor(Number(p.目標)) || 25), limit = (Number(p.秒) > 0 ? Number(p.秒) : 5) * 1000;
+    const autoRepeat = p.長押し === '可';
+    let count = 0, started = 0, pausedAt = 0, timer = null, holdTimer = null, done = false, drawQueued = false;
     const prog = el('div', 'prog', `0 / ${target}`);
     const bar = el('div', 'bar'); const fill = document.createElement('div'); fill.style.width = '100%'; bar.appendChild(fill);
-    const btn = el('button', 'big', 'ふむ！');
-    ui.minigame.replaceChildren(el('div', 'title', 'キーボードをふめ！（連打でも長押しでも。PCはどのキーでも）'), prog, bar, btn);
-    const finish = ok => {
+    const btn = el('button', 'big mash', 'ふむ！');
+    const how = autoRepeat ? '連打でも長押しでも。PCはどのキーでも' : '長押しは数えません。指2本・PCはキー2つ交互でもOK';
+    ui.minigame.replaceChildren(el('div', 'title', `${limit / 1000}秒で${target}回、キーボードをふむ！`), el('div', 'title note', how), prog, bar, btn);
+    const paused = () => !ui.menu.classList.contains('hidden') || document.hidden;
+    const syncPause = () => {   // 止まっていた時間だけ開始時刻をずらす（入力と時計の両方がここを通る）
+      const now = performance.now();
+      if (paused()) { if (!pausedAt) pausedAt = now; return true; }
+      if (pausedAt) { if (started) started += now - pausedAt; pausedAt = 0; }
+      return false;
+    };
+    const elapsed = () => performance.now() - started;
+    const stopTimers = () => { clearInterval(timer); clearInterval(holdTimer); document.removeEventListener('visibilitychange', onHide); };
+    // 結果を見せてから台本へ。待ちの間もメニュー中は止める（endLater と同じく、章が変わっていたら流さない）
+    const endAfter = (ms, result) => {
+      const g = game; let left = ms, last = performance.now();
+      const id = setInterval(() => {
+        const now = performance.now(), dt = now - last;
+        last = now;
+        if (!paused() && dt < 250) left -= dt;   // タブが隠れてタイマーごと止まっていた間（大きな空き）は数えない（Codex 第40回）
+        if (game !== g) { clearInterval(id); return; }
+        if (left <= 0) { clearInterval(id); endGame(result); }
+      }, 50);
+    };
+    const finish = () => {
       if (done) return;
-      done = true; clearInterval(timer); clearInterval(holdTimer);
-      endLater(500, ok ? 'せいこう' : 'しっぱい');
+      done = true; stopTimers();
+      if (count >= target) { endAfter(500, 'せいこう'); return; }
+      fill.style.width = '0%';
+      const short = target - count;   // 足りなかった数を少し長めに見せる（もう一回、と思えるように）
+      prog.textContent = `${count} / ${target}　あと${short}回${short <= 3 ? '！' : '。指2本でもOK'}`;
+      endAfter(1500, 'しっぱい');
     };
     const tick = () => {
-      if (!ui.menu.classList.contains('hidden')) { if (!pausedAt) pausedAt = Date.now(); return; }   // メニュー中は止まる
-      if (pausedAt) { started += Date.now() - pausedAt; pausedAt = 0; }
-      const t = Date.now() - started;
+      if (done || syncPause()) return;
+      const t = elapsed();
       fill.style.width = Math.max(0, 100 - t / limit * 100) + '%';
-      if (t >= limit) finish(count >= target);
+      if (t >= limit) finish();
     };
+    const draw = () => { drawQueued = false; render(); };   // 速い連打でも描画は 1 フレームに 1 回
     const press = () => {
-      if (done) return;
-      if (!started) { started = Date.now(); timer = setInterval(tick, 50); }
+      if (done || syncPause()) return;
+      if (!started) { started = performance.now(); timer = setInterval(tick, 50); }
+      else if (elapsed() >= limit) { finish(); return; }
       count++;
       E.visual.pc = (E.visual.pc + LETTERS[Math.floor(Math.random() * LETTERS.length)]).slice(-40);
       prog.textContent = `${count} / ${target}`;
-      render();
-      if (count >= target) finish(true);
+      if (!drawQueued) { drawQueued = true; requestAnimationFrame(draw); }
+      if (count >= target) finish();
     };
-    hold(btn, () => { press(); clearInterval(holdTimer); holdTimer = setInterval(press, 110); }, () => clearInterval(holdTimer));
-    game = { key: () => press(), stop: () => { done = true; clearInterval(timer); clearInterval(holdTimer); } };
+    const onHide = () => { syncPause(); if (holdTimer) clearInterval(holdTimer); };
+    document.addEventListener('visibilitychange', onHide);
+    if (autoRepeat) hold(btn, () => { press(); clearInterval(holdTimer); holdTimer = setInterval(press, 110); }, () => clearInterval(holdTimer));
+    else btn.onpointerdown = e => { e.preventDefault(); if (e.pointerType === 'mouse' && e.button !== 0) return; press(); };   // 指ごとに 1 回（isPrimary で絞らない）
+    const countable = e => !e.isComposing && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey && (e.key.length === 1 || e.key === 'Enter');
+    game = {
+      key: e => { if (countable(e) && (autoRepeat || !e.repeat)) press(); },
+      stop: () => { done = true; stopTimers(); },
+    };
   }
   function puddingGame() {
     let angle = 180, dir = 0, done = false;

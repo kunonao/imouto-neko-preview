@@ -123,6 +123,7 @@ table.need td:nth-child(4) { font-weight: bold; color: #e0002a; }
 .hanten:not(.open) b, .hanten:not(.open) strong, .hanten:not(.open) .who { color: #fff; background: transparent; }
 .hanten:not(.open) img, .hanten:not(.open) .tsukkomi, .hanten:not(.open) .shot { display: none; }
 .hanten:not(.open) ul.dot > li::before { color: #fff; }
+.hanten:not(.open) .hint { color: transparent; }
 .hanten:focus-visible { outline: 2px solid var(--blue); }
 
 /* エンディング */
@@ -153,6 +154,7 @@ details[open] { background: var(--pink-ll); padding: 4px 8px 2px; }
 .tag.とくべつ { background: #c9a227; }
 
 .bye { margin-top: 30px !important; text-align: center; font-weight: bold; color: var(--pink-d); }
+.tsukkomi + .bye { margin-top: 4px !important; }
 .entry-foot { margin: 20px 0 0; padding: 6px 0; font-size: 12px; color: #888; border-top: 1px dotted #ccc; text-align: right; }
 .clap { font: inherit; font-size: 12px; padding: 1px 10px; color: var(--pink-d); background: #fff; border: 1px solid var(--pink); border-radius: 10px; cursor: pointer; }
 .clap:active { background: var(--pink-l); }

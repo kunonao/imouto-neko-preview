@@ -4,12 +4,21 @@
   const $ = s => document.querySelector(s);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
-  // ---------- 反転（タップでも開く） ----------
-  document.querySelectorAll('.hanten').forEach(h => {
+  // ---------- 反転（タップでも開く。開いたものは、スクロールで画面から外れて 1 秒たつと隠し直す） ----------
+  const away = new Map();   // 画面から外れた反転 → 隠し直すタイマー
+  const watcher = 'IntersectionObserver' in window ? new IntersectionObserver(entries => entries.forEach(en => {
+    const h = en.target;
+    if (en.isIntersecting) { clearTimeout(away.get(h)); away.delete(h); return; }
+    if (h.classList.contains('open') && !away.has(h)) away.set(h, setTimeout(() => { h.classList.remove('open'); away.delete(h); }, 1000));
+  })) : null;
+  const makeHanten = h => {
+    h.tabIndex = 0;
     const open = () => h.classList.add('open');
     h.addEventListener('click', open);
     h.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
-  });
+    if (watcher) watcher.observe(h);
+  };
+  document.querySelectorAll('.hanten').forEach(makeHanten);
 
   // ---------- カレンダー（記事の日付 2027年3月21日） ----------
   {
@@ -89,6 +98,9 @@
     'ねるまえ:いま': '寝る前に', 'メモ:ひらき': 'メモが開いたあと', 'あいず:きいた': '合図のあと',
   };
   const condText = b => [...new Set((b.conds || []).map(c => COND[c[0] + ':' + c[1]]).filter(Boolean))].join('・');
+  // ブロックの条件だけでは分からないもの（ミニゲームの結果・順番。Codex 第41回）と、見つけかたが謎の答えになるもの（反転で隠す）
+  const EXTRA = { 'c1.げんこうほうかい': '連打成功', 'c1.ちょっとだけ': '連打失敗', 'c4.げんこうはだめ': 'メモが開く前に' };
+  const SPOIL = new Set(['c4.いっしょならとどく']);
 
   const box = $('#disc-list');
   box.textContent = '';
@@ -103,14 +115,16 @@
     list.forEach(({ d, b }) => {
       const tr = el('tr', d.special ? 'sp' : '');
       tr.appendChild(el('td', null, (d.special ? '★ ' : '') + d.name));
+      const key = `c${ci + 1}.${d.id}`;
+      const hide = d.special || SPOIL.has(key);   // ★の場所と謎の答えは反転で隠す
       const td = el('td');
-      const how = d.special ? el('span', 'hanten') : td;   // ★の場所は反転で隠す
+      const how = hide ? el('span', 'hanten') : td;
       const where = d.where || b.key || '';
-      const cond = condText(b);
+      const cond = [condText(b), EXTRA[key]].filter(Boolean).join('・');
       if (where && where !== 'ついていく') how.appendChild(document.createTextNode(where + (cond ? `（${cond}）` : '')));
       if (d.hint) how.appendChild(el('span', 'hint', d.hint));
       else if (!where || where === 'ついていく') how.appendChild(el('span', 'hint', 'よみちさんぽで'));
-      if (d.special) { how.tabIndex = 0; how.addEventListener('click', () => how.classList.add('open')); td.appendChild(how); }
+      if (hide) { td.appendChild(how); makeHanten(how); }
       tr.appendChild(td);
       const tagTd = el('td');
       (d.special ? ['とくべつ'] : (d.tags || [])).forEach(t => tagTd.appendChild(el('span', 'tag ' + t, t)));

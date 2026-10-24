@@ -215,6 +215,8 @@ h2 { font-weight: normal; }
 #minigame .kbrow { display: flex; gap: calc(3px * var(--s)); }
 #minigame button.key { min-width: calc(26px * var(--s)); min-height: calc(30px * var(--s)); padding: 0; font-size: calc(14px * var(--s)); }
 #minigame button.big { min-width: calc(104px * var(--s)); min-height: calc(44px * var(--s)); font-size: calc(16px * var(--s)); }
+#minigame button.mash { width: 100%; min-height: calc(64px * var(--s)); font-size: calc(20px * var(--s)); touch-action: none; }   /* 1章の連打: 指2本で叩ける広さ。ピンチやスクロールに取られない */
+#minigame .title.note { font-size: calc(12px * var(--s)); opacity: .8; }
 #minigame button.arrow { min-width: calc(64px * var(--s)); min-height: calc(64px * var(--s)); font-size: calc(22px * var(--s)); }
 #minigame button.small { min-height: calc(28px * var(--s)); font-size: calc(12px * var(--s)); opacity: .7; padding: 0 calc(8px * var(--s)); }
 #minigame button.hold { position: relative; overflow: hidden; }
