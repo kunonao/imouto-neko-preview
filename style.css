@@ -260,6 +260,8 @@ h2 { font-weight: normal; }
 .panel li.pick { cursor: pointer; }
 .panel li.pad { visibility: hidden; }   /* 行数そろえ用の空行 */
 .panel li.sel { color: #fff; text-decoration: underline; text-underline-offset: 2px; }
+.panel li.special.sel, .panel .hint.special { color: #ffd080; }
+.panel .note.counts .num { display: inline-block; text-align: right; }   /* はっけんの数: 幅は main.js で最大の桁に固定 */   /* ★ を選んでも金のまま。思い出すヒントも金（ユーザー要望 2026-10-24） */
 .panel .tabs { display: flex; flex-wrap: wrap; gap: calc(6px * var(--sm)); }
 .panel .tabs button { min-height: calc(28px * var(--sm)); padding: 0 calc(10px * var(--sm)); font-size: calc(13px * var(--sm)); opacity: .75; }
 .panel .tabs button.on { opacity: 1; border-color: var(--akane); }

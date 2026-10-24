@@ -84,7 +84,7 @@
     const table = $('#need-table');
     table.querySelector('.loading').parentNode.remove();
     TAGS.forEach(t => {
-      const total = totals[t] || 0, need = Math.max(3, Math.ceil(total * 0.4 - 1e-9));
+      const total = totals[t] || 0, need = Math.floor(total / 2) + 1;   // 半分より多く（engine の needFor と同じ）
       const tr = el('tr');
       tr.appendChild(el('td', null, ED[t]));
       const td = el('td'); td.appendChild(el('span', 'tag ' + t, t)); tr.appendChild(td);

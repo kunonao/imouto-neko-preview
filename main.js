@@ -359,7 +359,7 @@
   function pickable(li, box, text) {
     if (!text) return;
     li.classList.add('pick');
-    li.onclick = () => { box.textContent = text; li.parentNode.querySelectorAll('li.sel').forEach(x => x.classList.remove('sel')); li.classList.add('sel'); };
+    li.onclick = () => { box.textContent = text; box.classList.toggle('special', li.classList.contains('special')); li.parentNode.querySelectorAll('li.sel').forEach(x => x.classList.remove('sel')); li.classList.add('sel'); };
   }
   function legend(prefix) {   // おもいで の凡例: ■ 今回の周回 ／ □ 前の周回 ／ ？？？ まだ（文字の接尾ではなく印にする。2 列の一覧で折り返さないように）
     const p = el('p', 'note'); if (prefix) p.append(prefix);
@@ -423,7 +423,16 @@
     const tabs = el('div', 'tabs');   // 章の切り替え（見るだけ。進行は変えない）
     DATA.chapters.forEach((ch, i) => { if (E.counts(i).total) tabs.appendChild(button(`${i + 1}章`, () => showFound(i), i === ci ? 'on' : '')); });
     frag.appendChild(tabs);
-    frag.appendChild(el('p', 'note', `集めた数 ${c.found} / ${c.total}　とくべつ ${c.special} / ${c.specialTotal}　この周回で ${c.run}`));   // 上の帯は今回の周回の数。ここは以前を含む
+    {   // 上の帯は今回の周回の数。ここは以前を含む。数の幅を最大の桁で固定して、章を切り替えても文字が左右に動かないようにする（ユーザー要望 2026-10-24）
+      const most = Math.max(...DATA.chapters.map((_, i) => E.counts(i).total));
+      const w = String(most).length, ws = String(Math.max(...DATA.chapters.map((_, i) => E.counts(i).specialTotal))).length;
+      const num = (s, ch) => { const n = el('span', 'num', s); n.style.minWidth = ch + 'ch'; return n; };
+      const note = el('p', 'note counts');
+      note.append('集めた数 ', num(`${c.found} / ${c.total}`, w * 2 + 3), '　★ とくべつ ', num(`${c.special} / ${c.specialTotal}`, ws * 2 + 3), '　この周回で ', num(String(c.run), w));
+      frag.appendChild(note);
+    }
+    // 説明 → 凡例 → 一覧 の順は クリアルート・エンディング とそろえる（Codex 第47回）
+    frag.appendChild(el('p', 'note', '★ とくべつなはっけんは、姉妹の思い出（各章に1つ）。同じ周回で4つそろうと、いつもと違う朝になるかも'));
     frag.appendChild(legend());
     const ul = el('ul', 'two');   // 26 件を 2 列で（板の高さに収める）
     const most = Math.max(...DATA.chapters.map((_, i) => { const c = E.counts(i); return c.total + c.specialTotal; }));   // いちばん多い章の件数
@@ -436,7 +445,6 @@
     });
     for (let k = E.discoveryList(ci).length; k < most; k++) ul.appendChild(el('li', 'todo pad', '？？？'));   // 空の行で埋めて、章を切り替えても列の形と上下の余白を同じにする
     frag.appendChild(ul);
-    frag.appendChild(el('p', 'note', '★ は姉妹の思い出（各章に 1 つ）。同じ周回で 4 つそろうと、いつもと違う朝になるかも'));
     frag.appendChild(box);
     frag.appendChild(button('もどる', showMemories));
     p.replaceChildren(frag);
@@ -446,6 +454,9 @@
     const seen = seenEndings();
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, `エンディング ${seen.length} / ${ENDINGS.length}`));
+    // 並びは クリアルート・はっけん とそろえる: 見出し → 説明 → 凡例 → 一覧 → ヒント欄（ユーザー指摘 2026-10-24）
+    frag.appendChild(el('p', 'note', '一日の過ごし方（よく食べた、よく甘えた、など）で変わります。条件を満たした終わり方が複数あれば、終章の前に選べます'));
+    frag.appendChild(legend());
     const ul = el('ul');
     const box = hintBox(), eh = (DATA.chapters[DATA.chapters.length - 1].endingHints) || {};
     ENDINGS.forEach(n => {
@@ -455,8 +466,6 @@
       ul.appendChild(li);
     });   // 今回の周回で着いたものだけ濃く
     frag.appendChild(ul);
-    frag.appendChild(legend());
-    frag.appendChild(el('p', 'note', '一日の過ごし方（よく食べた、よく甘えた、など）で変わります。条件を満たした終わり方が複数あれば、終章の前に選べます'));
     frag.appendChild(box);   // ヒント欄はいちばん下（他の一覧と同じ）
     frag.appendChild(button('もどる', showMemories));
     p.replaceChildren(frag);

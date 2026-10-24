@@ -5,9 +5,11 @@
 
   const PREF = ['なく', 'すりすり', 'みる', 'のる', 'おりる', 'おとす', 'ふむ', 'ねころぶ', 'あそぶ', 'たべる', 'ついていく', 'つめ'];
   // エンディング判定用の状態（tools/build.js の TAGS と同じタグ。Codex と相談して決めた値）
-  //   ネコ        = その周回で見つけた割合がいちばん高い性格（割合 40% 以上、3個以上）。同率は先のタグ。なければ ふつう
+  //   ネコ        = 条件を満たした性格のうち、その周回で見つけた割合がいちばん高いもの。同率は先のタグ。なければ ふつう
+  //                 条件（2026-10-24 ユーザー決定。Codex 第44回）: その性格のはっけんを半分より多く（ちょうど半分は不可）、
+  //                 かつ前半（1・2章）と後半（3・4章）の両方で見つける（毎章は求めない。片方だけだと一日の性格に見えないため）
   //   トップ.◯◯  = その性格が同率1位のとき あり（終章の候補に使う）
-  //   すなお      = あまえんぼ を 8 個以上（終章の台本では、さらに 4章で頭を預けたこと c4.あずけた を条件にする）
+  //   すなお      = あまえんぼ を 11 個以上（あまえんぼ ED の必要数にそろえる。終章の台本では、さらに 4章で頭を預けたこと c4.あずけた を条件にする）
   //   かしこい    = お姉ちゃんに迷惑をかけず（いたずら 0 個）、寄り道少なく（手数 26 以下）、1〜4章を完走（2026-10-24 ユーザー決定。Codex 第42回）
   //                 内部では 1章の冷めたお茶（c1.おちゃ）も見る（いたずら 0 なら必ず満たす。説明は「いたずらなし」のまま）
   //                 手数 = その周回で実行したコマンドの数（ヒントは数えない）＋ よみちさんぽで寄り道した回数。台詞送り・メニュー・ミニゲームの中の操作は数えない
@@ -16,7 +18,8 @@
   //   完走        = 1〜4章をこの周回でクリアしたら 完走、でなければ 途中
   //   ヒント      = ヒントコマンドを見た回数（会話の中の誘導は数えない）
   const TAGS = ['くいしんぼ', 'あまえんぼ', 'いたずら', 'ねぼすけ', 'おしゃべり', 'かんさつ'];
-  const RULE = { 割合: 0.4, 最低: 3, すなお: 8, 手数: 26 };
+  const RULE = { すなお: 11, 手数: 26 };
+  const needFor = total => Math.floor(total / 2) + 1;   // 半分より多く（20 個なら 11 個）
   const matches = (conds, state) => conds.every(([k, v, neg]) => neg ? String(state[k]) !== v : String(state[k]) === v);
   const parseCond = t => { const m = t.match(/^([^:!]+)(!?):(.+)$/); return m ? (m[2] ? [m[1], m[3], '!'] : [m[1], m[3]]) : [t, '']; };
   const copyRun = r => JSON.parse(JSON.stringify(r));
@@ -82,18 +85,23 @@
 
     // エンディング判定用の状態（とくべつ / ネコ / トップ.◯◯ / かず.◯◯ / ヒント / すなお / かしこい / 完走 / ふつう）
     endingState() {
-      const totals = {}, counts = {}, seen = new Set();
+      const totals = {}, counts = {}, early = {}, late = {}, seen = new Set();
       this.chapters.forEach((ch, ci) => ch.blocks.forEach(b => b.discoveries.forEach(d => {
         const key = `c${ci + 1}.${d.id}`;
         if (seen.has(key)) return;   // 同じ id が複数の場所に書かれていても1つ
         seen.add(key);
         const hit = !!this.runFound[key];
-        (d.tags || []).forEach(t => { totals[t] = (totals[t] || 0) + 1; if (hit) counts[t] = (counts[t] || 0) + 1; });
+        (d.tags || []).forEach(t => {
+          totals[t] = (totals[t] || 0) + 1;
+          if (!hit) return;
+          counts[t] = (counts[t] || 0) + 1;
+          if (ci <= 1) early[t] = true; else late[t] = true;   // 前半 = 1・2章、後半 = 3・4章
+        });
       })));
       const s = { とくべつ: String(Object.keys(this.runSpecial).length), ヒント: String(this.hints), ふつう: 'あり' };
       const ranked = TAGS.map(t => ({ t, n: counts[t] || 0, r: totals[t] ? (counts[t] || 0) / totals[t] : 0 }));
       TAGS.forEach(t => { s['かず.' + t] = String(counts[t] || 0); s['トップ.' + t] = 'なし'; });
-      const ok = ranked.filter(x => x.r >= RULE.割合 && x.n >= RULE.最低);
+      const ok = ranked.filter(x => totals[x.t] && x.n >= needFor(totals[x.t]) && early[x.t] && late[x.t]);
       const best = ok.length ? Math.max(...ok.map(x => x.r)) : 0;
       const tops = ok.filter(x => x.r === best);
       tops.forEach(x => { s['トップ.' + x.t] = 'あり'; });
