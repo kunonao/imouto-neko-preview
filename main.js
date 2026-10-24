@@ -66,7 +66,10 @@
   function saveProgress() { store.set(SAVE_KEY, { snap: E.snapshot() }); }
   function saveFreshChapter(i) {
     const s = E.snapshot();
-    store.set(SAVE_KEY, { snap: { v: 1, chapterIndex: i, fresh: true, found: s.found, special: s.special, runFound: s.runFound, runSpecial: s.runSpecial, runCleared: s.runCleared, runRoutes: s.runRoutes, hints: s.hints, actions: s.actions, runAt: s.runAt } });
+    // 1章の頭（最後まで行ったあと）は新しい周回の始まりなので、周回の記録は空で保存する（コレクションだけ持ち越す）
+    const run = i === 0 ? { runFound: {}, runSpecial: {}, runCleared: {}, runRoutes: {}, hints: 0, actions: 0, runAt: {} }
+      : { runFound: s.runFound, runSpecial: s.runSpecial, runCleared: s.runCleared, runRoutes: s.runRoutes, hints: s.hints, actions: s.actions, runAt: s.runAt };
+    store.set(SAVE_KEY, { snap: Object.assign({ v: 1, chapterIndex: i, fresh: true, found: s.found, special: s.special }, run) });
   }
   function seenEndings() { const a = store.get(ENDINGS_KEY); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; }
   function rememberEnding(name) { const a = seenEndings(); if (name && !a.includes(name)) { a.push(name); store.set(ENDINGS_KEY, a); } }
@@ -256,6 +259,7 @@
     if (AUTO.length) setTimeout(() => doCommand(AUTO.shift()), 0);
   }
   function advance() {
+    if (dismissFlash()) return;   // 案内を出していたら、まず元に戻すだけ
     if (mode !== 'dialog') return;
     if (Date.now() - lastCmdAt < 250) return;
     step();
@@ -264,7 +268,7 @@
     if (mode !== 'commands') return;
     let ok;
     try { ok = E.begin(key); } catch (e) { toast('エラー: ' + e.message); return; }
-    if (!ok) { toast('いまは、それはできません'); return; }
+    if (!ok) { flashDialog('いまは、それはできません'); return; }
     lastCmdAt = Date.now();
     step();
   }
@@ -299,12 +303,29 @@
   }
 
   // ---------- 会話 ----------
+  let dialogSeq = 0;   // 会話欄を書き換えた回数（一瞬の案内のあとに戻してよいかの目印）
   function setDialog(name, text, cls, next) {
+    dialogSeq++;
     ui['d-name'].textContent = name;
     ui['d-text'].textContent = text;
     ui.dialog.className = 'dialog frame ' + cls;
     ui['d-next'].classList.toggle('hidden', !next);
   }
+  // 遊ぶ画面での短い案内（「いまは、それはできません」など）は、下のトーストではなく会話欄に出し、タップで元に戻す（読む人が戻すタイミングを決める。ユーザー要望 2026-10-24）
+  //   そのタップでは会話を進めない。案内を出している間に欄が書き換わったら（コマンドを選んだ など）、戻すのはやめる
+  let flashRestore = null;
+  function flashDialog(text) {
+    const prev = flashRestore ? flashRestore.prev : { name: ui['d-name'].textContent, text: ui['d-text'].textContent, cls: ui.dialog.className, next: ui['d-next'].classList.contains('hidden') };
+    setDialog('', text, 'nare', true);
+    const seq = dialogSeq;
+    flashRestore = { prev, run: () => {
+      flashRestore = null;
+      if (dialogSeq !== seq) return false;
+      ui['d-name'].textContent = prev.name; ui['d-text'].textContent = prev.text; ui.dialog.className = prev.cls; ui['d-next'].classList.toggle('hidden', prev.next);
+      return true;
+    } };
+  }
+  function dismissFlash() { if (!flashRestore) return false; return flashRestore.run(); }   // 戻したら true（そのタップは使い切り）
   function showSay(it) {
     if (it.hint) { setDialog('', it.text, 'hint', true); return; }   // ヒント: 話者名なし（葵の心の声ではない）
     const sp = it.speaker;
@@ -345,7 +366,7 @@
     const p = ui['menu-panel'];
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, 'メニュー'));
-    if (E.hasHint()) frag.appendChild(button('ヒント（終わり方には影響しません）', () => { closeMenu(); if (mode !== 'commands') { toast('ヒントは、行動を選べるときに見られます'); return; } doCommand('ヒント'); }));
+    if (E.hasHint()) frag.appendChild(button('ヒント（終わり方には影響しません）', () => { closeMenu(); if (mode !== 'commands') { flashDialog('ヒントは、行動を選べるときに見られます'); return; } doCommand('ヒント'); }));
     frag.appendChild(button('おもいで', showMemories));
     frag.appendChild(button('せってい', showSettings));
     frag.appendChild(button('時間をえらぶ', showChapters));   // 章 = あさ／ひる／ゆうがた／よる なので「時間」。もう一度たしかめたい人のための入口（研究用。鍵はかけない）
@@ -373,7 +394,7 @@
     const frag = document.createDocumentFragment();
     frag.appendChild(el('h2', null, 'おもいで'));
     // 小さいものから大きいものへ: はっけん（場面） → ルート（章） → エンディング（一日）。ユーザー指定 2026-10-23
-    frag.appendChild(button(`はっけん　${t.found} / ${t.total}　★ ${t.special} / ${t.specialTotal}`, () => showFound(E.chapter ? E.chapterIndex : 0)));   // 開くときは必ず今の章
+    frag.appendChild(button(`はっけん　${t.found} / ${t.total}　★ ${t.special} / ${t.specialTotal}`, () => { foundFrom = 'memories'; showFound(E.chapter ? E.chapterIndex : 0); }));   // 開くときは必ず今の章
     frag.appendChild(button(`クリアルート　${routesSeen.length} / ${totalRoutes}`, showRoutes));
     frag.appendChild(button(`エンディング　${seen.length} / ${ENDINGS.length}`, showEndings));
     frag.appendChild(mode === 'title' ? button('とじる', closeMenu) : button('もどる', openMenu));   // タイトルからは とじる
@@ -443,6 +464,7 @@
     frag.appendChild(button('もどる', showMemories));
     p.replaceChildren(frag);
   }
+  let foundFrom = 'memories';   // はっけん の一覧をどこから開いたか（top = 上の帯の はっけん）。章のタブで開き直しても保つ
   function showFound(ci) {   // ci = 見る章（タブで切り替え。進行は変えない）
     if (typeof ci !== 'number') ci = E.chapter ? E.chapterIndex : 0;
     const p = ui['menu-panel'];
@@ -475,7 +497,8 @@
     for (let k = E.discoveryList(ci).length; k < most; k++) ul.appendChild(el('li', 'todo pad', '？？？'));   // 空の行で埋めて、章を切り替えても列の形と上下の余白を同じにする
     frag.appendChild(ul);
     frag.appendChild(box);
-    frag.appendChild(button('もどる', showMemories));
+    // 上の帯の「はっけん」から直接開いたときは とじる でプレイ画面へ（通っていない おもいで に戻さない。Codex 第47回）
+    frag.appendChild(foundFrom === 'top' ? button('とじる', closeMenu) : button('もどる', showMemories));
     p.replaceChildren(frag);
   }
   function showEndings() {
@@ -1470,11 +1493,11 @@
       angle = (angle + dir * 3 + 360) % 360;
       E.visual.pudding = angle;
       const n = angle > 180 ? angle - 360 : angle;
-      if (Math.abs(n) <= 6) {
+      if (Math.abs(n) <= 3) {   // 3°/tick なので 0 にはちょうど届く。±6 だと止まる瞬間に最大 6° 跳ねた（Codex 第39回）
         done = true; dir = 0; angle = 0; E.visual.pudding = 0;
         clearInterval(loop);
         drawDial(); render();
-        endLater(600, 'せいこう');
+        endLater(1200, 'せいこう');   // 逆さの「あおい」が茜を向いた絵を見せる間。合図は足さない（自動停止そのものが合図。ユーザー指摘 2026-10-24、Codex 第39回）
         return;
       }
       drawDial(); render();
@@ -1497,7 +1520,7 @@
     if (!ui.menu.classList.contains('hidden')) { if (e.key === 'Escape' && !pickerOpen) closeMenu(); return; }
     if (game && game.key) { game.key(e); e.preventDefault(); return; }
     if (mode === 'card' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (ui.card.onclick) ui.card.onclick(); }   // カードを閉じる（1.5 秒たつまでは onclick 側で無視）
-    else if (mode === 'dialog' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); advance(); }
+    else if ((mode === 'dialog' || flashRestore) && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); advance(); }
     else if (mode === 'commands' && /^[1-9]$/.test(e.key)) { const b = ui.commands.querySelectorAll('button')[Number(e.key) - 1]; if (b) b.click(); }
     else if (mode === 'commands' && e.key === 'Escape') openMenu();
   });
@@ -1529,7 +1552,7 @@
   ui['btn-memories'].onclick = () => { showMemories(); ui.menu.classList.remove('hidden'); };   // タイトルからも おもいで を見られる（終章のまとめの案内先）
   ui['btn-costume'].onclick = cycleCostume;
   ui['btn-menu'].onclick = openMenu;   // メニューは常に出しておく
-  ui['btn-found'].onclick = () => { showFound(); ui.menu.classList.remove('hidden'); };
+  ui['btn-found'].onclick = () => { foundFrom = 'top'; showFound(); ui.menu.classList.remove('hidden'); };
 
   // ---------- 起動 ----------
   loadSettings();
