@@ -19,6 +19,12 @@
     if (watcher) watcher.observe(h);
   };
   document.querySelectorAll('.hanten').forEach(makeHanten);
+  // 文字をなぞって読んだときも開く（なぞるだけだと、文字は見えても画像やツッコミが隠れたままになるため）
+  document.addEventListener('selectionchange', () => {
+    const s = window.getSelection();
+    if (!s || s.isCollapsed) return;
+    document.querySelectorAll('.hanten:not(.open)').forEach(h => { if (s.containsNode(h, true)) h.classList.add('open'); });
+  });
 
   // ---------- カレンダー（記事の日付 2027年3月21日） ----------
   {
