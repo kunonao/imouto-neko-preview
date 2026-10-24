@@ -129,7 +129,8 @@
     const c = E.counts();
     ui['btn-found'].textContent = `はっけん ${c.run}/${c.total}` + (c.specialTotal ? ` ★${c.runSpecial}/${c.specialTotal}` : '');   // 今回の周回の数（過去の周回ぶんは おもいで で）
   }
-  // 画面全体のカード（章と目標の提示）。最初の 1.5 秒はタップを無視して必ず見せる（連打していても消えない）。その後はタップで閉じ、2.8 秒で自動的に閉じる
+  // 画面全体のカード（章と目標の提示）。最初の 1.5 秒はタップを無視して必ず見せる（連打していても消えない）。その後はタップ（PC は Enter・Space も）で閉じる
+  // 自動では閉じない（「タップで進む」と出ているのに勝手に進むと食い違うため。ユーザー指摘 2026-10-24）。確認用の ?skip=1 だけは 2.8 秒で閉じる
   function showCard(small, label, big, done) {
     const card = ui.card;
     ui['card-small'].textContent = small;
@@ -141,7 +142,7 @@
     const shownAt = Date.now();
     let finished = false;
     const finish = () => { if (finished) return; finished = true; clearTimeout(t); clearTimeout(u); card.classList.add('hidden'); card.onclick = null; done(); };
-    const t = setTimeout(finish, 2800);
+    const t = SKIP ? setTimeout(finish, 2800) : 0;
     const u = setTimeout(() => card.classList.remove('locked'), 1500);
     card.onclick = () => { if (Date.now() - shownAt >= 1500) finish(); };
   }
@@ -1466,7 +1467,8 @@
   document.addEventListener('keydown', e => {
     if (!ui.menu.classList.contains('hidden')) { if (e.key === 'Escape' && !pickerOpen) closeMenu(); return; }
     if (game && game.key) { game.key(e); e.preventDefault(); return; }
-    if (mode === 'dialog' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); advance(); }
+    if (mode === 'card' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (ui.card.onclick) ui.card.onclick(); }   // カードを閉じる（1.5 秒たつまでは onclick 側で無視）
+    else if (mode === 'dialog' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); advance(); }
     else if (mode === 'commands' && /^[1-9]$/.test(e.key)) { const b = ui.commands.querySelectorAll('button')[Number(e.key) - 1]; if (b) b.click(); }
     else if (mode === 'commands' && e.key === 'Escape') openMenu();
   });
