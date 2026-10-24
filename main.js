@@ -647,8 +647,10 @@
     rect(x - 2, y - 4, 2, 2, C.pink); rect(x + 1, y - 4, 2, 2, C.pink); rect(x - 3, y - 2, 7, 2, C.pink);
     rect(x - 2, y, 5, 1, C.pink); rect(x - 1, y + 1, 3, 1, C.pink); rect(x, y + 2, 1, 1, C.pink);
   }
+  function drawSteam(x, y) { if (E.state.おちゃ === 'あたたかい') { rect(x + 2, y - 9, 1, 2, C.gray); rect(x + 4, y - 10, 1, 2, C.gray); } }   // 淹れ直したお茶の湯気（1章・終章）
   const PROP = {
-    'マグ': (x, y) => { rect(x, y - 6, 6, 6, C.white); rect(x + 6, y - 5, 2, 3, C.white); rect(x + 1, y - 4, 4, 1, C.pink); if (E.state.おちゃ === 'あたたかい') { rect(x + 2, y - 9, 1, 2, C.gray); rect(x + 4, y - 10, 1, 2, C.gray); } },
+    // 1章の机のマグ = 茜のマグ = 月のマグ（葵が描いた青い月。4章の つきのマグ と同じ絵。印は茜向き = 左）。以前は茜色の横線で、4章の「赤い太陽 = 葵のマグ」と逆に読めた（ユーザー指摘 2026-10-24）
+    'マグ': (x, y) => { rect(x, y - 6, 6, 6, C.white); rect(x + 6, y - 5, 2, 3, C.white); rect(x + 1, y - 4, 1, 2, '#3868a8'); drawSteam(x, y); },
     'ノートPC': (x, y) => { rect(x, y - 2, 24, 2, C.gray); rect(x + 2, y - 17, 20, 15, C.black); rect(x + 3, y - 16, 18, 13, C.screen); drawPcText(x + 5, y - 15); },
     'ペンたて': (x, y) => { rect(x, y - 6, 4, 6, C.gray); rect(x + 1, y - 9, 1, 3, C.pink); rect(x + 2, y - 8, 1, 2, C.blue); },
     'ほん': (x, y) => { rect(x, y - 2, 8, 2, C.sofa); rect(x + 1, y - 4, 8, 2, '#3868a8'); rect(x, y - 6, 7, 2, C.yellow); },
@@ -661,8 +663,8 @@
       rect(x + 4 + Math.round(Math.sin(a) * 3), y - 3 - Math.round(Math.cos(a) * 2), 1, 1, C.white);
     },
     // 4章のおそろいのマグ。絵（月 = 青、太陽 = 赤）は向いている側に描く（茜向き = 左、葵向き = 右）
-    'つきのマグ': (x, y) => { rect(x, y - 6, 6, 6, C.white); rect(x + 6, y - 5, 2, 3, C.white); rect(x + (E.state.月むき === '葵' ? 4 : 1), y - 4, 1, 2, '#3868a8'); },
-    'たいようのマグ': (x, y) => { rect(x, y - 6, 6, 6, C.white); rect(x + 6, y - 5, 2, 3, C.white); rect(x + (E.state.日むき === '葵' ? 4 : 1), y - 4, 1, 2, C.sofa); },
+    'つきのマグ': (x, y) => { rect(x, y - 6, 6, 6, C.white); rect(x + 6, y - 5, 2, 3, C.white); rect(x + (E.state.月むき === '葵' ? 4 : 1), y - 4, 1, 2, '#3868a8'); drawSteam(x, y); },
+    'たいようのマグ': (x, y) => { rect(x, y - 6, 6, 6, C.white); rect(x + 6, y - 5, 2, 3, C.white); rect(x + (E.state.日むき === '葵' ? 4 : 1), y - 4, 1, 2, C.sofa); drawSteam(x, y); },
     // 葵の席のスツール（机の前に置くので、机より濃い色で縁取る）
     'スツール': (x, y) => { rect(x - 7, y - 10, 14, 3, C.woodDark); rect(x - 6, y - 10, 12, 1, C.cabinet); rect(x - 6, y - 7, 2, 7, C.woodDark); rect(x + 4, y - 7, 2, 7, C.woodDark); },
     'スプーン': (x, y) => { rect(x, y - 1, 8, 1, C.gray); rect(x + 6, y - 2, 3, 2, C.gray); },
