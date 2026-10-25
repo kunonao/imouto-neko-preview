@@ -634,6 +634,10 @@
   function drawPcText(x, y) {
     const text = E.visual.pc;
     if (text === 'メモ') return;   // 空のメモ（4章。!PC メモ）: 何も描かない白い画面
+    if (text === 'かんせい') {   // 書き上がった原稿（4章の夜の終わり・終章。!PC かんせい）: 画面いっぱいの行
+      [12, 11, 12, 12, 8].forEach((w, i) => rect(x, y + 1 + i * 2, w, 1, C.screenText));
+      return;
+    }
     if (!text) { // 原稿の三行
       rect(x, y + 1, 12, 1, C.screenText); rect(x, y + 4, 10, 1, C.screenText); rect(x, y + 7, 6, 1, C.screenText);
       return;
